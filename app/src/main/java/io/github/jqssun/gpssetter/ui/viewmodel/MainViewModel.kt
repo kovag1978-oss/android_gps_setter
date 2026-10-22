@@ -90,6 +90,10 @@ class MainViewModel @Inject constructor(
         favoriteRepository.deleteFavorite(favorite)
     }
 
+    fun updateFavorite(favorite: Favorite) = onIO {
+        favoriteRepository.updateFavorite(favorite)
+    }
+
     suspend fun getFavoritesSnapshot(): List<Favorite> =
         withContext(Dispatchers.IO) {
             favoriteRepository.getAllFavoritesSnapshot()

@@ -11,7 +11,7 @@ interface FavoriteDao {
 
         // for update single favorite
         @Update
-        suspend fun updateUserDetails(favorite: Favorite)
+        suspend fun updateFavorite(favorite: Favorite)
 
         //delete single favorite
         @Delete

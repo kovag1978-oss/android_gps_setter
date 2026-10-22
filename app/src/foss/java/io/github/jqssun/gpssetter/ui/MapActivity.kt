@@ -158,6 +158,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
                 mMap.animateCamera(CameraUpdateFactory.newLatLng(it))
                 lat = it.latitude
                 lon = it.longitude
+                clearSelectedFavorite()
             }
         }
         return true
@@ -190,10 +191,18 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
             }
             binding.startButton.visibility = View.GONE
             binding.stopButton.visibility = View.VISIBLE
-            lifecycleScope.launch {
-                mLatLng?.getAddress(getActivityInstance())?.let { address ->
-                    address.collect{ value ->
-                        showStartNotification(value)
+            val favoriteName = selectedFavoriteName
+            showStartNotification(
+                favoriteName ?: getString(R.string.location_coordinates, lat, lon)
+            )
+            if (favoriteName == null) {
+                lifecycleScope.launch {
+                    mLatLng?.getAddress(getActivityInstance())?.let { address ->
+                        address.collect { value ->
+                            showStartNotification(
+                                value.ifBlank { getString(R.string.location_coordinates, lat, lon) }
+                            )
+                        }
                     }
                 }
             }

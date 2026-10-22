@@ -7,7 +7,8 @@
     android:paddingBottom="5dp"
     android:layout_weight="2"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:background="@drawable/favorite_item_background">
 
 
     <TextView
@@ -17,8 +18,8 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_weight="1"
+        android:textSize="24sp"
         android:text="@string/address"
-        android:background="?attr/selectableItemBackgroundBorderless"
         android:clickable="true"/>
 
     <ImageView

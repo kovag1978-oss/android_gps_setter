@@ -60,6 +60,9 @@ class FavoriteRepository @Inject constructor(private val favoriteDao: FavoriteDa
           favoriteDao.deleteSingleFavorite(favorite)
        }
 
+        suspend fun updateFavorite(favorite: Favorite) {
+                favoriteDao.updateFavorite(favorite)
+        }
 
        fun getSingleFavorite(id: Long) : Favorite {
        return favoriteDao.getSingleFavorite(id)

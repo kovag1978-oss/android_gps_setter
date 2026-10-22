@@ -14,6 +14,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.os.Looper
 import android.provider.Settings
 import android.view.View
@@ -31,6 +32,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.view.*
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -65,6 +67,8 @@ abstract class BaseMapActivity: AppCompatActivity() {
 
     protected var lat by Delegates.notNull<Double>()
     protected var lon by Delegates.notNull<Double>()
+    protected var selectedFavoriteName: String? = null
+        private set
     protected val viewModel by viewModels<MainViewModel>()
     protected val binding by lazy { ActivityMapBinding.inflate(layoutInflater) }
     protected lateinit var alertDialog: MaterialAlertDialogBuilder
@@ -80,6 +84,10 @@ abstract class BaseMapActivity: AppCompatActivity() {
     private val importFavoritesLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let(::importFavorites)
+        }
+    private val notificationsPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) showToast(getString(R.string.notifications_permission_required))
         }
     private var xposedDialog: AlertDialog? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -116,8 +124,41 @@ abstract class BaseMapActivity: AppCompatActivity() {
         setupNavView()
         setupButtons()
         setupDrawer()
+        requestNotificationsPermissionIfNeeded()
         if (PrefManager.isJoystickEnabled){
             startService(Intent(this, JoystickService::class.java))
+        }
+        promptRestartAfterAppUpdate()
+    }
+
+    private fun requestNotificationsPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationsPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun promptRestartAfterAppUpdate() {
+        val preferences = getSharedPreferences("app_update_state", MODE_PRIVATE)
+        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+        val currentUpdateTime = packageInfo.lastUpdateTime
+        val previousUpdateTime = preferences.getLong("last_update_time", 0L)
+        preferences.edit().putLong("last_update_time", currentUpdateTime).apply()
+
+        val wasUpdated = if (previousUpdateTime == 0L) {
+            currentUpdateTime > packageInfo.firstInstallTime
+        } else {
+            currentUpdateTime > previousUpdateTime
+        }
+        if (wasUpdated) {
+            binding.root.post {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.restart_after_update_title)
+                    .setMessage(R.string.restart_after_update_message)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
         }
     }
 
@@ -167,6 +208,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
                                         }
                                         is SearchProgress.Complete -> {
                                             progress.visibility = View.GONE
+                                            selectedFavoriteName = null
                                             lat = result.lat
                                             lon = result.lon
                                             moveMapToNewLocation(true)
@@ -270,17 +312,46 @@ abstract class BaseMapActivity: AppCompatActivity() {
         val rcv = view.findViewById<RecyclerView>(R.id.favorites_list)
         rcv.layoutManager = LinearLayoutManager(this)
         rcv.adapter = favListAdapter
-        favListAdapter.onItemClick = {
-            it.let {
-                lat = it.lat!!
-                lon = it.lng!!
-            }
-            moveMapToNewLocation(true)
-            if (dialog.isShowing) dialog.dismiss()
-
+        var pendingFavoriteSelection: Runnable? = null
+        favListAdapter.onItemClick = { favorite ->
+            favListAdapter.selectFavorite(favorite)
+            pendingFavoriteSelection?.let(rcv::removeCallbacks)
+            pendingFavoriteSelection = Runnable {
+                lat = favorite.lat!!
+                lon = favorite.lng!!
+                selectedFavoriteName = favorite.address?.takeIf(String::isNotBlank)
+                moveMapToNewLocation(true)
+                if (dialog.isShowing) dialog.dismiss()
+            }.also { rcv.postDelayed(it, 600L) }
         }
         favListAdapter.onItemDelete = {
             viewModel.deleteFavorite(it)
+        }
+        favListAdapter.onItemRename = { favorite ->
+            val renameView = layoutInflater.inflate(R.layout.dialog, null)
+            val nameInput = renameView.findViewById<EditText>(R.id.search_edittxt).apply {
+                hint = getString(R.string.favorite_name)
+                setText(favorite.address.orEmpty())
+                setSelection(text.length)
+            }
+            val renameDialog = MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.rename_favorite)
+                .setView(renameView)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.rename, null)
+                .create()
+            renameDialog.setOnShowListener {
+                renameDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    val name = nameInput.text.toString().trim()
+                    if (name.isEmpty()) {
+                        nameInput.error = getString(R.string.favorite_name_required)
+                    } else {
+                        viewModel.updateFavorite(favorite.copy(address = name))
+                        renameDialog.dismiss()
+                    }
+                }
+            }
+            renameDialog.show()
         }
         alertDialog.setView(view)
         dialog = alertDialog.create()
@@ -454,14 +525,25 @@ abstract class BaseMapActivity: AppCompatActivity() {
     }
 
     protected fun showStartNotification(address: String){
+        if (!NotificationManagerCompat.from(this).areNotificationsEnabled() ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+        ) {
+            showToast(getString(R.string.notifications_permission_required))
+            return
+        }
         notificationsChannel.showNotification(this){
             it.setSmallIcon(R.drawable.ic_stop)
-            it.setContentTitle(getString(R.string.location_set))
+            it.setContentTitle(getString(R.string.active_location))
             it.setContentText(address)
-            it.setAutoCancel(true)
-            it.setCategory(Notification.CATEGORY_EVENT)
-            it.priority = NotificationCompat.PRIORITY_HIGH
+            it.setOngoing(true)
+            it.setCategory(Notification.CATEGORY_SERVICE)
+            it.priority = NotificationCompat.PRIORITY_MAX
         }
+    }
+
+    protected fun clearSelectedFavorite() {
+        selectedFavoriteName = null
     }
 
     protected fun cancelNotification(){
@@ -479,6 +561,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
                     if (location == null) {
                         requestNewLocationData()
                     } else {
+                        selectedFavoriteName = null
                         lat = location.latitude
                         lon = location.longitude
                         moveMapToNewLocation(true)
@@ -514,6 +597,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
             val mLastLocation: Location = locationResult.lastLocation!!
             lat = mLastLocation.latitude
             lon = mLastLocation.longitude
+            selectedFavoriteName = null
         }
     }
 

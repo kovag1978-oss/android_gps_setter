@@ -6,6 +6,10 @@
     <string name="search">Search</string>
     <string name="address">United States</string>
     <string name="favorites">Favorites</string>
+    <string name="rename_favorite">Rename favorite</string>
+    <string name="favorite_name">Favorite name</string>
+    <string name="favorite_name_required">Enter a name</string>
+    <string name="rename">Rename</string>
     <string name="export_favorites">Export</string>
     <string name="import_favorites">Import</string>
     <string name="favorites_exported">Favorites exported</string>
@@ -17,6 +21,9 @@
     <string name="address_not_found">Address not found</string>
     <string name="cant_save">Can\'t save</string>
     <string name="location_set">Location set</string>
+    <string name="active_location">Active location</string>
+    <string name="location_coordinates">%1$.5f, %2$.5f</string>
+    <string name="notifications_permission_required">Allow notifications for GPS Setter to see the active location.</string>
     <string name="title">Location set notification</string>
     <string name="des">Show notification when location is set</string>
     <string name="location_unset">Location unset</string>
@@ -36,6 +43,8 @@
     <string name="download_manager_description">Downloading update</string>
     <string name="update_button">Update</string>
     <string name="update_available">Update available</string>
+    <string name="restart_after_update_title">Restart device</string>
+    <string name="restart_after_update_message">To apply the LSPosed module update, restart your device.</string>
     <string name="bs_update_download_failed">Failed</string>
 
 
