@@ -6,11 +6,13 @@ import android.app.Notification
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.SQLException
 import android.graphics.Color
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
@@ -21,6 +23,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
@@ -44,6 +47,7 @@ import io.github.jqssun.gpssetter.R
 import io.github.jqssun.gpssetter.adapter.FavListAdapter
 import io.github.jqssun.gpssetter.databinding.ActivityMapBinding
 import io.github.jqssun.gpssetter.ui.viewmodel.MainViewModel
+import io.github.jqssun.gpssetter.utils.FavoriteTextFormat
 import io.github.jqssun.gpssetter.utils.JoystickService
 import io.github.jqssun.gpssetter.utils.NotificationsChannel
 import io.github.jqssun.gpssetter.utils.PrefManager
@@ -69,6 +73,14 @@ abstract class BaseMapActivity: AppCompatActivity() {
 
     private val notificationsChannel by lazy { NotificationsChannel() }
     private var favListAdapter: FavListAdapter = FavListAdapter()
+    private val exportFavoritesLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+            uri?.let(::exportFavorites)
+        }
+    private val importFavoritesLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let(::importFavorites)
+        }
     private var xposedDialog: AlertDialog? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val PERMISSION_ID = 42
@@ -273,7 +285,66 @@ abstract class BaseMapActivity: AppCompatActivity() {
         alertDialog.setView(view)
         dialog = alertDialog.create()
         dialog.show()
+        view.findViewById<View>(R.id.export_favorites).setOnClickListener {
+            exportFavoritesLauncher.launch("favorites.txt")
+        }
+        view.findViewById<View>(R.id.import_favorites).setOnClickListener {
+            importFavoritesLauncher.launch(arrayOf("text/*"))
+        }
 
+    }
+
+    private fun exportFavorites(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                val text = FavoriteTextFormat.encode(viewModel.getFavoritesSnapshot())
+                withContext(Dispatchers.IO) {
+                    val output = contentResolver.openOutputStream(uri, "wt")
+                        ?: throw IOException("Could not open the selected file")
+                    output.bufferedWriter(Charsets.UTF_8).use { writer ->
+                        writer.write(text)
+                    }
+                }
+                showToast(getString(R.string.favorites_exported))
+            } catch (exception: IOException) {
+                showToast(getString(R.string.favorites_export_failed))
+            } catch (exception: SecurityException) {
+                showToast(getString(R.string.favorites_export_failed))
+            } catch (exception: IllegalStateException) {
+                showToast(getString(R.string.favorites_export_failed))
+            } catch (exception: SQLException) {
+                showToast(getString(R.string.favorites_export_failed))
+            }
+        }
+    }
+
+    private fun importFavorites(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                val text = withContext(Dispatchers.IO) {
+                    val input = contentResolver.openInputStream(uri)
+                        ?: throw IOException("Could not open the selected file")
+                    input.bufferedReader(Charsets.UTF_8).use { reader -> reader.readText() }
+                }
+                val favorites = FavoriteTextFormat.decode(text)
+                if (favorites.isEmpty()) {
+                    showToast(getString(R.string.favorites_import_empty))
+                } else {
+                    val (imported, skipped) = viewModel.importFavorites(favorites)
+                    showToast(getString(R.string.favorites_imported, imported, skipped))
+                }
+            } catch (exception: IOException) {
+                showToast(getString(R.string.favorites_import_failed, exception.localizedMessage.orEmpty()))
+            } catch (exception: SecurityException) {
+                showToast(getString(R.string.favorites_import_failed, exception.localizedMessage.orEmpty()))
+            } catch (exception: IllegalArgumentException) {
+                showToast(getString(R.string.favorites_file_invalid))
+            } catch (exception: SQLException) {
+                showToast(getString(R.string.favorites_import_failed, exception.localizedMessage.orEmpty()))
+            } catch (exception: IllegalStateException) {
+                showToast(getString(R.string.favorites_import_failed, exception.localizedMessage.orEmpty()))
+            }
+        }
     }
 
     private fun getAllUpdatedFavList(){

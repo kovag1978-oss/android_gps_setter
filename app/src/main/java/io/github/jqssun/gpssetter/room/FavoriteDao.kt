@@ -22,6 +22,12 @@ interface FavoriteDao {
         @Query("SELECT * FROM favorite ORDER BY id DESC")
         fun getAllFavorites() : Flow<List<Favorite>>
 
+        @Query("SELECT * FROM favorite ORDER BY id DESC")
+        suspend fun getAllFavoritesSnapshot(): List<Favorite>
+
+        @Insert(onConflict = OnConflictStrategy.IGNORE)
+        suspend fun insertFavorites(favorites: List<Favorite>): List<Long>
+
         //get single favorite inserted to room database
         @Transaction
         @Query("SELECT * FROM favorite WHERE id = :id ORDER BY id DESC")

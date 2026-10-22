@@ -90,6 +90,16 @@ class MainViewModel @Inject constructor(
         favoriteRepository.deleteFavorite(favorite)
     }
 
+    suspend fun getFavoritesSnapshot(): List<Favorite> =
+        withContext(Dispatchers.IO) {
+            favoriteRepository.getAllFavoritesSnapshot()
+        }
+
+    suspend fun importFavorites(favorites: List<Favorite>): Pair<Int, Int> =
+        withContext(Dispatchers.IO) {
+            favoriteRepository.importFavorites(favorites)
+        }
+
     private fun getFavoriteSingle(i : Int) : Favorite {
         return favoriteRepository.getSingleFavorite(i.toLong())
     }

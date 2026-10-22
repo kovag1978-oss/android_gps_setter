@@ -6,6 +6,14 @@
     <string name="search">Search</string>
     <string name="address">United States</string>
     <string name="favorites">Favorites</string>
+    <string name="export_favorites">Export</string>
+    <string name="import_favorites">Import</string>
+    <string name="favorites_exported">Favorites exported</string>
+    <string name="favorites_imported">Imported %1$d favorites; skipped %2$d duplicates</string>
+    <string name="favorites_import_empty">No favorites to import</string>
+    <string name="favorites_export_failed">Could not export favorites</string>
+    <string name="favorites_import_failed">Could not import favorites: %1$s</string>
+    <string name="favorites_file_invalid">Invalid favorites file format</string>
     <string name="address_not_found">Address not found</string>
     <string name="cant_save">Can\'t save</string>
     <string name="location_set">Location set</string>
