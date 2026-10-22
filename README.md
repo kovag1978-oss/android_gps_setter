@@ -1,16 +1,17 @@
 # GPS Setter
 
-[![Stars](https://img.shields.io/github/stars/jqssun/android-gps-setter)](https://github.com/jqssun/android-gps-setter/stargazers)
-[![LSPosed](https://img.shields.io/github/downloads/Xposed-Modules-Repo/io.github.jqssun.gpssetter/total?label=LSPosed&logo=Android&style=flat&labelColor=F48FB1&logoColor=ffffff)](https://github.com/Xposed-Modules-Repo/io.github.jqssun.gpssetter/releases)
-[![GitHub](https://img.shields.io/github/downloads/jqssun/android-gps-setter/total?label=GitHub&logo=GitHub)](https://github.com/jqssun/android-gps-setter/releases)
-[![release](https://img.shields.io/github/v/release/jqssun/android-gps-setter)](https://github.com/jqssun/android-gps-setter/releases)
-[![build](https://img.shields.io/github/actions/workflow/status/jqssun/android-gps-setter/apk.yml)](https://github.com/jqssun/android-gps-setter/actions/workflows/apk.yml)
-[![license](https://img.shields.io/github/license/jqssun/android-gps-setter)](https://github.com/jqssun/android-gps-setter/blob/master/LICENSE)
-[![issues](https://img.shields.io/github/issues/jqssun/android-gps-setter)](https://github.com/jqssun/android-gps-setter/issues)
+[![Stars](https://img.shields.io/github/stars/kovag1978-oss/android_gps_setter)](https://github.com/kovag1978-oss/android_gps_setter/stargazers)
+[![GitHub](https://img.shields.io/github/downloads/kovag1978-oss/android_gps_setter/total?label=GitHub&logo=GitHub)](https://github.com/kovag1978-oss/android_gps_setter/releases)
+[![release](https://img.shields.io/github/v/release/kovag1978-oss/android_gps_setter)](https://github.com/kovag1978-oss/android_gps_setter/releases)
+[![build](https://img.shields.io/github/actions/workflow/status/kovag1978-oss/android_gps_setter/apk.yml)](https://github.com/kovag1978-oss/android_gps_setter/actions/workflows/apk.yml)
+[![license](https://img.shields.io/github/license/kovag1978-oss/android_gps_setter)](https://github.com/kovag1978-oss/android_gps_setter/blob/master/LICENSE)
+[![issues](https://img.shields.io/github/issues/kovag1978-oss/android_gps_setter)](https://github.com/kovag1978-oss/android_gps_setter/issues)
   
 A GPS setter based on the Xposed framework. This fork is the first module to achieve support for Android 15+ with its sources available.  
 
 ## Releases
+
+This fork uses the separate application ID `io.github.kovag1978oss.gpssetter` and installs independently of the upstream app.
 
 <table>
     <tr>
@@ -30,26 +31,14 @@ A GPS setter based on the Xposed framework. This fork is the first module to ach
     </tr>
     <tr>
         <th>Distribution</th>
-        <td>
-            <a href="https://github.com/jqssun/android-gps-setter/releases">
-                <img
-                    src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/refs/heads/main/badge_github.png"
-                    alt="Get it on GitHub" width="200" />
-            </a>
-        </td>
-        <td>
-            <a href="https://f-droid.org/packages/io.github.jqssun.gpssetter">
-                <img
-                    src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
-                    alt="Get it on F-Droid" width="200" />
-            </a>
+        <td colspan="2">
+            <a href="https://github.com/kovag1978-oss/android_gps_setter/releases">GitHub Releases (both variants)</a>
         </td>
     </tr>
 </table>
 
 <!-- 
-[<img src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/refs/heads/main/badge_github.png" alt="Get it on GitHub" height="80">](https://github.com/jqssun/android-gps-setter/releases)
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80">]()
+[<img src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/refs/heads/main/badge_github.png" alt="Get it on GitHub" height="80">](https://github.com/kovag1978-oss/android_gps_setter/releases)
 [<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" height="80">]()
 -->
 
@@ -68,7 +57,7 @@ Specifically, in the case of hooking just the app, it intercepts [`android.locat
 ## Compatibility
 
 - Android 8.1+ (tested up to Android 16 Beta 2)
-- Rooted devices with Xposed framework installed (e.g. LSPosed)
+- Rooted devices with an Xposed-compatible framework (e.g. LSPosed or Vector; Vector supports the legacy Xposed API used by this module)
 - Unrooted devices with LSPatch (with manually embedded specified location)
 
 ## Features
@@ -82,7 +71,7 @@ Specifically, in the case of hooking just the app, it intercepts [`android.locat
 
 ## Demo
 
-<video loop src='https://github.com/user-attachments/assets/fbc0901c-b126-4ca7-9239-34390a76e7f9' alt="demo" width="200" style="display: block; margin: auto;"></video> <!-- https://github.com/jqssun/android-gps-setter/releases/download/v0.0.1/0.mp4 -->
+<video loop src='https://github.com/user-attachments/assets/fbc0901c-b126-4ca7-9239-34390a76e7f9' alt="demo" width="200" style="display: block; margin: auto;"></video>
 
 ## Credits
 

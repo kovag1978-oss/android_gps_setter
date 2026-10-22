@@ -6,7 +6,7 @@ name: Generate APK
 env:
   main_project_module: app
   target_owner: Xposed-Modules-Repo
-  target_repo: io.github.jqssun.gpssetter
+  target_repo: io.github.kovag1978oss.gpssetter
   target_path: target_path
 
 on:
@@ -77,10 +77,11 @@ jobs:
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
 
       - name: Publish (Xposed)
+        if: vars.LSPOSED_REPO_READY == 'true'
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.PAT }}
-          repository: Xposed-Modules-Repo/io.github.jqssun.gpssetter
+          repository: Xposed-Modules-Repo/io.github.kovag1978oss.gpssetter
           name: v${{ env.version }}
           tag_name: v${{ env.version }}
           files: |
@@ -88,6 +89,7 @@ jobs:
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
 
       - name: Checkout
+        if: vars.LSPOSED_REPO_READY == 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ env.target_owner }}/${{ env.target_repo }}
@@ -98,13 +100,15 @@ jobs:
           # sparse-checkout-cone-mode: false
       
       - name: Sync
+        if: vars.LSPOSED_REPO_READY == 'true'
         run: |
           cd ${{ env.target_path }}
           cp ../README.md ../LICENSE .
+          printf '%s\n' "https://github.com/${GITHUB_REPOSITORY}" > SOURCE_URL
+          printf '%s\n' "A GPS setter based on the Xposed framework." > SUMMARY
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add README.md
-          git add LICENSE
+          git add README.md LICENSE SOURCE_URL SUMMARY
           git commit --amend --no-edit
           git push --force
       
