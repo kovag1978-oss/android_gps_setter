@@ -2,7 +2,7 @@
 <resources>
     <string-array name="scopes">
         <item>android</item>
-
+        <item>com.google.android.gms</item>
     </string-array>
 
 

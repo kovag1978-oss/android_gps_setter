@@ -42,6 +42,11 @@
 
     <PreferenceCategory app:title="@string/xposed">
 
+        <Preference
+            android:title="@string/xposed_scope_title"
+            android:summary="@string/xposed_scope_summary"
+            android:selectable="false" />
+
         <SwitchPreferenceCompat
             android:title="@string/advanced_hook"
             android:summary="@string/advanced_summary"

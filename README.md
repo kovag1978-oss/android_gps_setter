@@ -60,6 +60,10 @@ Specifically, in the case of hooking just the app, it intercepts [`android.locat
 - Rooted devices with an Xposed-compatible framework (e.g. LSPosed or Vector; Vector supports the legacy Xposed API used by this module)
 - Unrooted devices with LSPatch (with manually embedded specified location)
 
+## LSPosed / Vector scope
+
+The module recommends **Android System** (`android`) and **Google Play services** (`com.google.android.gms`) in its scope list. Enable Android System when using system hooking, and Google Play services when location is supplied through GMS. For app-only hooking, also enable each target app whose location should be changed. Restart the affected processes (or reboot) after changing scopes.
+
 ## Features
 
 - ✨ (New) Supports system server location APIs introduced in Android 14+
