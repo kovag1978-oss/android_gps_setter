@@ -1,84 +1,65 @@
 package io.github.jqssun.gpssetter.update
 
-import android.content.Context
-import android.os.Parcelable
 import io.github.jqssun.gpssetter.BuildConfig
-import io.github.jqssun.gpssetter.utils.PrefManager
-import kotlinx.android.parcel.Parcelize
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
-import java.io.File
+import timber.log.Timber
 import javax.inject.Inject
 
 
 class UpdateChecker @Inject constructor(private val apiResponse : GitHubService) {
 
-
-    fun getLatestRelease() = callbackFlow {
-        withContext(Dispatchers.IO){
-            getReleaseList()?.let { gitHubReleaseResponse ->
-                val currentTag = gitHubReleaseResponse.tagName
-
-                if (currentTag != null && (currentTag != "v" + BuildConfig.TAG_NAME && PrefManager.isUpdateDisabled)) {
-                    //New update available!
-                    val asset =
-                        gitHubReleaseResponse.assets?.firstOrNull { it.name?.endsWith(".apk") == true }
-                    val releaseUrl =
-                        asset?.browserDownloadUrl?.replace("/download/", "/tag/")?.apply {
-                            substring(0, lastIndexOf("/"))
-                        }
-                    val name = gitHubReleaseResponse.name ?: run {
-                        this@callbackFlow.trySend(null).isSuccess
-                        return@let
-                    }
-                    val body = gitHubReleaseResponse.body ?: run {
-                        this@callbackFlow.trySend(null).isSuccess
-                        return@let
-                    }
-                    val publishedAt = gitHubReleaseResponse.publishedAt ?: run {
-                        this@callbackFlow.trySend(null).isSuccess
-                        return@let
-                    }
-                    this@callbackFlow.trySend(
-                        Update(
-                            name,
-                            body,
-                            publishedAt,
-                            asset?.browserDownloadUrl
-                                ?: "https://github.com/jqssun/android-gps-setter/releases",
-                            asset?.name ?: "app-full-arm64-v8a-release.apk",
-                            releaseUrl ?: "https://github.com/jqssun/android-gps-setter/releases"
-                        )
-                    ).isSuccess
-                }
-            } ?: run {
-                this@callbackFlow.trySend(null).isSuccess
+    suspend fun checkForUpdate(): CheckResult = withContext(Dispatchers.IO) {
+        try {
+            val response = apiResponse.getReleases().execute()
+            if (!response.isSuccessful) {
+                Timber.w("GitHub update check failed with HTTP %d", response.code())
+                return@withContext CheckResult.Failed("GitHub returned HTTP ${response.code()}")
             }
+
+            val release = response.body()
+            val tagName = release?.tagName
+            if (release == null || tagName == null) {
+                Timber.w("GitHub latest release response is missing release data")
+                return@withContext CheckResult.Failed("GitHub response did not contain a release tag")
+            }
+
+            if (tagName == "v${BuildConfig.TAG_NAME}") {
+                return@withContext CheckResult.Current
+            }
+
+            val assetName = "app-${BuildConfig.FLAVOR}-arm64-v8a-release.apk"
+            val assetUrl = release.assets
+                ?.firstOrNull { it.name == assetName }
+                ?.browserDownloadUrl
+            if (assetUrl.isNullOrBlank()) {
+                Timber.w("GitHub latest release is missing the expected APK: %s", assetName)
+                return@withContext CheckResult.Failed("Release is missing $assetName")
+            }
+
+            CheckResult.Available(
+                Update(
+                    name = release.name ?: tagName,
+                    changelog = release.body.orEmpty(),
+                    assetUrl = assetUrl
+                )
+            )
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Timber.e(exception, "Failed to check for updates on GitHub")
+            CheckResult.Failed(
+                exception.localizedMessage ?: exception.javaClass.simpleName
+            )
         }
-        awaitClose {  }
     }
 
-
-    private fun getReleaseList(): GitHubRelease? {
-
-        runCatching {
-            apiResponse.getReleases().execute().body()
-        }.onSuccess {
-            return it
-        }.onFailure {
-            return null
-        }
-        return null
+    sealed class CheckResult {
+        object Current : CheckResult()
+        data class Failed(val reason: String) : CheckResult()
+        data class Available(val update: Update) : CheckResult()
     }
 
-    fun clearCachedDownloads(context: Context){
-        File(context.externalCacheDir, "updates").deleteRecursively()
-    }
-
-    @Parcelize
-    data class Update(val name: String, val changelog: String, val timestamp: String, val assetUrl: String, val assetName: String, val releaseUrl: String):
-        Parcelable
+    data class Update(val name: String, val changelog: String, val assetUrl: String)
 }
-

@@ -119,6 +119,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
                 mMap.animateCamera(CameraUpdateFactory.newLatLng(it))
                 lat = it.latitude
                 lon = it.longitude
+                clearSelectedFavorite()
             }
         }
     }
@@ -148,10 +149,18 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
             }
             binding.startButton.visibility = View.GONE
             binding.stopButton.visibility = View.VISIBLE
-            lifecycleScope.launch {
-                mLatLng?.getAddress(getActivityInstance())?.let { address ->
-                    address.collect{ value ->
-                        showStartNotification(value)
+            val favoriteName = selectedFavoriteName
+            showStartNotification(
+                favoriteName ?: getString(R.string.location_coordinates, lat, lon)
+            )
+            if (favoriteName == null) {
+                lifecycleScope.launch {
+                    mLatLng?.getAddress(getActivityInstance())?.let { address ->
+                        address.collect { value ->
+                            showStartNotification(
+                                value.ifBlank { getString(R.string.location_coordinates, lat, lon) }
+                            )
+                        }
                     }
                 }
             }

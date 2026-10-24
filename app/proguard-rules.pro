@@ -23,6 +23,12 @@
 -keep class io.github.jqssun.gpssetter.ui.viewmodel.MainViewModel{*;}
 -keepnames class io.github.jqssun.gpssetter.ui.viewmodel.MainViewModel.**
 
+-keep interface io.github.jqssun.gpssetter.update.GitHubService { *; }
+-keep interface retrofit2.Call { *; }
+-keep class io.github.jqssun.gpssetter.update.GitHubRelease { *; }
+-keep class io.github.jqssun.gpssetter.update.GitHubRelease$Asset { *; }
+-keepattributes Signature,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault
+
 -keep class io.github.jqssun.gpssetter.xposed.Xshare{*;}
 -keep class io.github.jqssun.gpssetter.xposed.HookEntry{*;}
 -keep class de.robv.android.xposed.**{*;}

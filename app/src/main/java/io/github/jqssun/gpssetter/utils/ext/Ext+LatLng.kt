@@ -3,30 +3,33 @@ package io.github.jqssun.gpssetter.utils.ext
 import android.content.Context
 import android.location.Geocoder
 import io.github.jqssun.gpssetter.ui.CustomLatLng
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.util.*
 
-suspend fun CustomLatLng.getAddress(context: Context) = callbackFlow {
-    withContext(Dispatchers.IO){
-        val addresses =
-            Geocoder(context, Locale.getDefault()).getFromLocation(latitude, longitude, 1)
-        val sb = StringBuilder()
-        if (addresses!!.size > 0) {
-            val address = addresses[0].getAddressLine(0)
-            val strs = address.split(",".toRegex()).toTypedArray()
-            if (strs.size > 1) {
-                sb.append(strs[0])
-                val index = address.indexOf(",") + 2
-                if (index > 1 && address.length > index) {
-                    sb.append("\n").append(address.substring(index))
+suspend fun CustomLatLng.getAddress(context: Context) = flow {
+    val address = withContext(Dispatchers.IO) {
+        try {
+            val addresses =
+                Geocoder(context, Locale.getDefault()).getFromLocation(latitude, longitude, 1)
+            val addressLine = addresses?.firstOrNull()?.getAddressLine(0).orEmpty()
+            val parts = addressLine.split(",", limit = 2)
+            if (parts.size > 1) {
+                buildString {
+                    append(parts[0])
+                    val remainder = parts[1].trim()
+                    if (remainder.isNotEmpty()) {
+                        append("\n").append(remainder)
+                    }
                 }
             } else {
-                sb.append(address)
+                addressLine
             }
+        } catch (_: IOException) {
+            ""
         }
-        trySend(sb.toString())
     }
-    awaitClose { this.cancel() }
+    emit(address)
 }

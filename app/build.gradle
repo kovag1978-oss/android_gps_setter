@@ -7,15 +7,22 @@ plugins {
     id 'com.google.devtools.ksp'
 }
 
-def tagName = '0.0.6'
+def tagName = '0.0.7'
+def signingPropertiesFile = rootProject.file("local.properties")
+def signingProperties = new Properties()
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withInputStream { signingProperties.load(it) }
+}
+def releaseSigningConfigured = ['keyAlias', 'keyPassword', 'storeFile', 'storePassword']
+        .every { signingProperties.getProperty(it)?.trim() }
 
 android {
     compileSdk 34
     defaultConfig {
-        applicationId "io.github.jqssun.gpssetter"
+        applicationId "io.github.kovag1978oss.gpssetter"
         minSdk 27
         targetSdk 34
-        versionCode 6
+        versionCode 7
         versionName tagName
         // testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "TAG_NAME", "\"${tagName}\"")
@@ -34,15 +41,13 @@ android {
     }
 
     signingConfigs {
-        release {
-            def keystorePropertiesFile = rootProject.file("local.properties")
-            def keystoreProperties = new Properties()
-            keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile file(keystoreProperties['storeFile'])
-            storePassword keystoreProperties['storePassword']
+        if (releaseSigningConfigured) {
+            release {
+                keyAlias signingProperties['keyAlias']
+                keyPassword signingProperties['keyPassword']
+                storeFile file(signingProperties['storeFile'])
+                storePassword signingProperties['storePassword']
+            }
         }
     }
 
@@ -51,7 +56,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
         }
         debug {
             minifyEnabled false
@@ -127,4 +134,10 @@ dependencies {
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 
     implementation 'com.github.lukkass222:virtual-joystick-android:1.13.5'
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    if (!releaseSigningConfigured && taskGraph.allTasks.any { it.name.contains('Release') }) {
+        throw new GradleException("Release builds require keyAlias, keyPassword, storeFile, and storePassword in local.properties.")
+    }
 }

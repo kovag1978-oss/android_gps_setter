@@ -2,6 +2,7 @@ package io.github.jqssun.gpssetter.ui
 
 
 import android.app.ActivityManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -20,17 +21,25 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.DropDownPreference
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceDataStore
 import androidx.preference.PreferenceFragmentCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import dagger.hilt.android.AndroidEntryPoint
 import io.github.jqssun.gpssetter.R
 import io.github.jqssun.gpssetter.databinding.ActivitySettingsBinding
+import io.github.jqssun.gpssetter.update.UpdateChecker
 import io.github.jqssun.gpssetter.utils.JoystickService
 import io.github.jqssun.gpssetter.utils.PrefManager
 import io.github.jqssun.gpssetter.utils.ext.showToast
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class ActivitySettings : AppCompatActivity() {
 
     private val binding by lazy {
@@ -42,7 +51,6 @@ class ActivitySettings : AppCompatActivity() {
             return when (key) {
                 "system_hooked" -> PrefManager.isSystemHooked
                 "random_position" -> PrefManager.isRandomPosition
-                "update_disabled" -> PrefManager.isUpdateDisabled
                 "joystick_enabled" -> PrefManager.isJoystickEnabled
                 else -> throw IllegalArgumentException("Invalid key $key")
             }
@@ -52,7 +60,6 @@ class ActivitySettings : AppCompatActivity() {
             return when (key) {
                 "system_hooked" -> PrefManager.isSystemHooked = value
                 "random_position" -> PrefManager.isRandomPosition = value
-                "update_disabled" -> PrefManager.isUpdateDisabled = value
                 "joystick_enabled" -> PrefManager.isJoystickEnabled = value
                 else -> throw IllegalArgumentException("Invalid key $key")
             }
@@ -63,6 +70,8 @@ class ActivitySettings : AppCompatActivity() {
                 "accuracy_level" -> PrefManager.accuracy
                 "map_type" -> PrefManager.mapType.toString()
                 "dark_theme" -> PrefManager.darkTheme.toString()
+                "app_language" -> AppCompatDelegate.getApplicationLocales().toLanguageTags()
+                    .ifEmpty { "system" }
                 else -> throw IllegalArgumentException("Invalid key $key")
             }
         }
@@ -72,6 +81,16 @@ class ActivitySettings : AppCompatActivity() {
                 "accuracy_level" -> PrefManager.accuracy = value
                 "map_type" -> PrefManager.mapType = value!!.toInt()
                 "dark_theme" -> PrefManager.darkTheme = value!!.toInt()
+                "app_language" -> {
+                    val languageTags = when (value) {
+                        "system" -> ""
+                        "ru", "en" -> value
+                        else -> throw IllegalArgumentException("Invalid app language $value")
+                    }
+                    AppCompatDelegate.setApplicationLocales(
+                        LocaleListCompat.forLanguageTags(languageTags)
+                    )
+                }
                 else -> throw IllegalArgumentException("Invalid key $key")
             }
         }
@@ -111,11 +130,39 @@ class ActivitySettings : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
+    @AndroidEntryPoint
     class SettingsPreferenceFragment : PreferenceFragmentCompat() {
+
+        @Inject
+        lateinit var updateChecker: UpdateChecker
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             preferenceManager?.preferenceDataStore = SettingPreferenceDataStore()
             setPreferencesFromResource(R.xml.preferences, rootKey)
+
+            findPreference<Preference>("check_update")?.setOnPreferenceClickListener { preference ->
+                preference.isEnabled = false
+                preference.setSummary(R.string.checking_for_updates)
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val result = updateChecker.checkForUpdate()
+
+                    preference.isEnabled = true
+                    preference.setSummary(R.string.check_update_summary)
+                    when (result) {
+                        UpdateChecker.CheckResult.Current -> showUpdateCheckMessage(
+                            R.string.latest_version_installed,
+                            R.string.latest_version_installed_message
+                        )
+                        is UpdateChecker.CheckResult.Failed -> showUpdateCheckMessage(
+                            R.string.update_check_failed,
+                            R.string.update_check_failed_message,
+                            result.reason
+                        )
+                        is UpdateChecker.CheckResult.Available -> showUpdateAvailable(result.update)
+                    }
+                }
+                true
+            }
 
             findPreference<EditTextPreference>("accuracy_level")?.let {
                 it.summary = "${PrefManager.accuracy} m"
@@ -155,10 +202,10 @@ class ActivitySettings : AppCompatActivity() {
                     if (askOverlayPermission()){
                         if (isJoystickRunning()) {
                             requireContext().stopService(Intent(context,JoystickService::class.java))
-                            it.summary = "Joystick disabled"
+                            it.summary = getString(R.string.joystick_disabled)
                         } else if (PrefManager.isStarted) {
                             requireContext().startService(Intent(context,JoystickService::class.java))
-                            it.summary = "Joystick enabled"
+                            it.summary = getString(R.string.joystick_enabled)
                         } else {
                             requireContext().showToast(requireContext().getString(R.string.location_not_select))
                         }
@@ -166,6 +213,35 @@ class ActivitySettings : AppCompatActivity() {
                     true
                 }
             }
+        }
+
+        private fun showUpdateCheckMessage(title: Int, message: Int, reason: String? = null) {
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(title)
+                .setMessage(if (reason == null) getString(message) else getString(message, reason))
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+        }
+
+        private fun showUpdateAvailable(update: UpdateChecker.Update) {
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.update_available)
+                .setMessage(
+                    getString(
+                        R.string.update_available_message,
+                        update.name,
+                        update.changelog
+                    )
+                )
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.update_button) { _, _ ->
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.assetUrl)))
+                    } catch (_: ActivityNotFoundException) {
+                        requireContext().showToast(getString(R.string.update_download_failed))
+                    }
+                }
+                .show()
         }
 
         private fun isJoystickRunning(): Boolean {

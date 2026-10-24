@@ -14,22 +14,28 @@
             android:title="@string/dark_theme" />
 
         <DropDownPreference
-            android:title="Map"
+            android:defaultValue="system"
+            android:entries="@array/language_texts"
+            android:entryValues="@array/language_values"
+            android:key="app_language"
+            android:summary="%s"
+            android:title="@string/app_language" />
+
+        <DropDownPreference
+            android:title="@string/map_title"
             android:summary="%s"
             android:icon="@drawable/ic_map_type"
             android:key="map_type"
-            android:dialogTitle="Map type"
+            android:dialogTitle="@string/map_type_dialog"
             android:entries="@array/map_type"
             android:entryValues="@array/map_value"
             android:defaultValue="1" />
 
-        <SwitchPreferenceCompat
+        <Preference
             android:title="@string/check_update"
             android:summary="@string/check_update_summary"
             android:icon="@drawable/ic_update"
-            android:widgetLayout="@layout/preference_switch_widget"
-            android:key="update_disabled"
-            android:defaultValue="false" />
+            android:key="check_update" />
 
         <Preference
             android:title="@string/enable_joystick"
@@ -41,6 +47,11 @@
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/xposed">
+
+        <Preference
+            android:title="@string/xposed_scope_title"
+            android:summary="@string/xposed_scope_summary"
+            android:selectable="false" />
 
         <SwitchPreferenceCompat
             android:title="@string/advanced_hook"

@@ -10,8 +10,8 @@ import io.github.jqssun.gpssetter.R
 class NotificationsChannel{
 
     private fun createChannelIfNeeded(context: Context) {
-        NotificationChannelCompat.Builder("set.location", NotificationManager.IMPORTANCE_DEFAULT).apply {
-            setName(context.getString(R.string.title))
+        NotificationChannelCompat.Builder("active.location", NotificationManager.IMPORTANCE_HIGH).apply {
+            setName(context.getString(R.string.active_location))
             setDescription(context.getString(R.string.des))
         }.build().also {
             NotificationManagerCompat.from(context).createNotificationChannel(it)
@@ -20,7 +20,7 @@ class NotificationsChannel{
 
     private fun createNotification(context: Context, options: (NotificationCompat.Builder) -> Unit): Notification {
         createChannelIfNeeded(context)
-        return NotificationCompat.Builder(context, "set.location").apply { options(this) }.build()
+        return NotificationCompat.Builder(context, "active.location").apply { options(this) }.build()
     }
 
     fun showNotification(context: Context, options: (NotificationCompat.Builder) -> Unit): Notification {

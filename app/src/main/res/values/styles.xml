@@ -5,5 +5,8 @@
         <item name="android:popupBackground">@drawable/background_menu</item>
     </style>
 
+    <style name="GPSSetterNavigationMenuItemText" parent="@style/TextAppearance.Material3.BodyMedium">
+        <item name="android:textSize">21sp</item>
+    </style>
 
 </resources>

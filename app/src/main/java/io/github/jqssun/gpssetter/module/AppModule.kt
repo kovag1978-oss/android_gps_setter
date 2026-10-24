@@ -27,7 +27,7 @@ object AppModule{
     @Provides
     fun createGitHubService(): Retrofit =
         Retrofit.Builder()
-            .baseUrl("https://api.github.com/repos/jqssun/android-gps-setter/")
+            .baseUrl("https://api.github.com/repos/kovag1978-oss/android_gps_setter/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 

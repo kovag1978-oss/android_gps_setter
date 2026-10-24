@@ -11,7 +11,7 @@ interface FavoriteDao {
 
         // for update single favorite
         @Update
-        suspend fun updateUserDetails(favorite: Favorite)
+        suspend fun updateFavorite(favorite: Favorite)
 
         //delete single favorite
         @Delete
@@ -21,6 +21,12 @@ interface FavoriteDao {
         @Transaction
         @Query("SELECT * FROM favorite ORDER BY id DESC")
         fun getAllFavorites() : Flow<List<Favorite>>
+
+        @Query("SELECT * FROM favorite ORDER BY id DESC")
+        suspend fun getAllFavoritesSnapshot(): List<Favorite>
+
+        @Insert(onConflict = OnConflictStrategy.IGNORE)
+        suspend fun insertFavorites(favorites: List<Favorite>): List<Long>
 
         //get single favorite inserted to room database
         @Transaction
