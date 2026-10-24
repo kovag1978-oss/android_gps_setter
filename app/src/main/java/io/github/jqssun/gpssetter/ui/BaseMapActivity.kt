@@ -2,7 +2,6 @@ package io.github.jqssun.gpssetter.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Notification
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -29,7 +28,6 @@ import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.view.*
 import androidx.lifecycle.Lifecycle
@@ -261,6 +259,9 @@ abstract class BaseMapActivity: AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.updateXposedState()
+        binding.startButton.visibility = if (PrefManager.isStarted) View.GONE else View.VISIBLE
+        binding.stopButton.visibility = if (PrefManager.isStarted) View.VISIBLE else View.GONE
+        VoiceCommandTileService.requestStateUpdate(this)
     }
 
     protected fun aboutDialog(){
@@ -462,14 +463,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
             showToast(getString(R.string.notifications_permission_required))
             return
         }
-        notificationsChannel.showNotification(this){
-            it.setSmallIcon(R.drawable.ic_stop)
-            it.setContentTitle(getString(R.string.active_location))
-            it.setContentText(address)
-            it.setOngoing(true)
-            it.setCategory(Notification.CATEGORY_SERVICE)
-            it.priority = NotificationCompat.PRIORITY_MAX
-        }
+        notificationsChannel.showLocationNotification(this, address)
     }
 
     protected fun clearSelectedFavorite() {
@@ -477,7 +471,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
     }
 
     protected fun cancelNotification(){
-        notificationsChannel.cancelAllNotifications(this)
+        notificationsChannel.cancelLocationNotification(this)
     }
 
     // Get current location

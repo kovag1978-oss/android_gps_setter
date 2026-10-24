@@ -6,10 +6,6 @@ import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
 import io.github.jqssun.gpssetter.BuildConfig
 import io.github.jqssun.gpssetter.gsApp
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 
 
 @SuppressLint("WorldReadableFiles")
@@ -78,21 +74,11 @@ object PrefManager   {
         set(value) = pref.edit().putBoolean(ENABLE_JOYSTICK, value).apply()
 
     fun update(start:Boolean, la: Double, ln: Double) {
-        runInBackground {
-            val prefEditor = pref.edit()
-            prefEditor.putFloat(LATITUDE, la.toFloat())
-            prefEditor.putFloat(LONGITUDE, ln.toFloat())
-            prefEditor.putBoolean(START, start)
-            prefEditor.apply()
-        }
-
-    }
-
-    @OptIn(DelicateCoroutinesApi::class)
-    private fun runInBackground(method: suspend () -> Unit){
-        GlobalScope.launch(Dispatchers.IO) {
-            method.invoke()
-        }
+        pref.edit()
+            .putFloat(LATITUDE, la.toFloat())
+            .putFloat(LONGITUDE, ln.toFloat())
+            .putBoolean(START, start)
+            .apply()
     }
 
 }

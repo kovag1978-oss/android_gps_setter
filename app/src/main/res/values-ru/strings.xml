@@ -80,4 +80,10 @@
     <string name="turn_on_location">Включите геолокацию</string>
     <string name="joystick_disabled">Джойстик выключен</string>
     <string name="joystick_enabled">Джойстик включён</string>
+    <string name="voice_tile_label">Голосовая геолокация</string>
+    <string name="voice_tile_subtitle">Назовите место из избранного</string>
+    <string name="voice_prompt">Назовите сохранённое место из избранного</string>
+    <string name="voice_no_favorites">Избранных мест нет; подмена геолокации выключена.</string>
+    <string name="voice_command_failed">Не удалось распознать место из избранного; подмена геолокации выключена.</string>
+    <string name="voice_location_set">Установлено местоположение: %1$s</string>
 </resources>

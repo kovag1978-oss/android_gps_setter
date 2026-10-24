@@ -26,12 +26,27 @@ class NotificationsChannel{
     fun showNotification(context: Context, options: (NotificationCompat.Builder) -> Unit): Notification {
         val notification = createNotification(context, options)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(123, notification)
+        notificationManager.notify(ACTIVE_LOCATION_NOTIFICATION_ID, notification)
         return notification
     }
 
-    fun cancelAllNotifications(context: Context) {
+    fun showLocationNotification(context: Context, address: String) {
+        showNotification(context) {
+            it.setSmallIcon(R.drawable.ic_stop)
+            it.setContentTitle(context.getString(R.string.active_location))
+            it.setContentText(address)
+            it.setOngoing(true)
+            it.setCategory(Notification.CATEGORY_SERVICE)
+            it.priority = NotificationCompat.PRIORITY_MAX
+        }
+    }
+
+    fun cancelLocationNotification(context: Context) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancelAll()
+        notificationManager.cancel(ACTIVE_LOCATION_NOTIFICATION_ID)
+    }
+
+    companion object {
+        private const val ACTIVE_LOCATION_NOTIFICATION_ID = 123
     }
 }
