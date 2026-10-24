@@ -47,4 +47,8 @@ The module hooks Android location APIs, including `Location` and `LocationManage
 - [Android1500/GpsSetter](https://github.com/Android1500/GpsSetter) for the original project.
 - [MapLibre](https://github.com/maplibre/maplibre-native) and [microG](https://github.com/microg/GmsCore) for the FOSS map and location components.
 
+## Support
+
+If GPS Setter is useful to you, you can [sponsor the project on GitHub](https://github.com/sponsors/kovag1978-oss).
+
 Licensed under [GPL-3.0-only](LICENSE).

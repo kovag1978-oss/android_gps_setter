@@ -21,7 +21,6 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,7 +28,6 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.AppCompatButton
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -42,7 +40,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.*
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.elevation.ElevationOverlayProvider
-import com.google.android.material.progressindicator.LinearProgressIndicator
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.jqssun.gpssetter.BuildConfig
 import io.github.jqssun.gpssetter.R
@@ -73,7 +70,6 @@ abstract class BaseMapActivity: AppCompatActivity() {
     protected val binding by lazy { ActivityMapBinding.inflate(layoutInflater) }
     protected lateinit var alertDialog: MaterialAlertDialogBuilder
     protected lateinit var dialog: AlertDialog
-    protected val update by lazy { viewModel.getAvailableUpdate() }
 
     private val notificationsChannel by lazy { NotificationsChannel() }
     private var favListAdapter: FavListAdapter = FavListAdapter()
@@ -120,7 +116,6 @@ abstract class BaseMapActivity: AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         initializeMap()
         checkModuleEnabled()
-        checkUpdates()
         setupNavView()
         setupButtons()
         setupDrawer()
@@ -430,71 +425,6 @@ abstract class BaseMapActivity: AppCompatActivity() {
 
     }
 
-    private fun checkUpdates(){
-        lifecycleScope.launchWhenResumed {
-            viewModel.update.collect{
-                if (it!= null){
-                    updateDialog()
-                }
-            }
-        }
-    }
-
-    private fun updateDialog(){
-        alertDialog = MaterialAlertDialogBuilder(this)
-        alertDialog.setTitle(R.string.update_available)
-        alertDialog.setMessage(update?.changelog)
-        alertDialog.setPositiveButton(getString(R.string.update_button)) { _, _ ->
-            MaterialAlertDialogBuilder(this).apply {
-                val view = layoutInflater.inflate(R.layout.update_dialog, null)
-                val progress = view.findViewById<LinearProgressIndicator>(R.id.update_download_progress)
-                val cancel = view.findViewById<AppCompatButton>(R.id.update_download_cancel)
-                setView(view)
-                cancel.setOnClickListener {
-                    viewModel.cancelDownload(getActivityInstance())
-                    dialog.dismiss()
-                }
-                lifecycleScope.launch {
-                    viewModel.downloadState.collect {
-                        when (it) {
-                            is MainViewModel.State.Downloading -> {
-                                if (it.progress > 0) {
-                                    progress.isIndeterminate = false
-                                    progress.progress = it.progress
-                                }
-                            }
-                            is MainViewModel.State.Done -> {
-                                viewModel.openPackageInstaller(getActivityInstance(), it.fileUri)
-                                viewModel.clearUpdate()
-                                dialog.dismiss()
-                            }
-                            is MainViewModel.State.Failed -> {
-                                Toast.makeText(
-                                    getActivityInstance(),
-                                    R.string.bs_update_download_failed,
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                dialog.dismiss()
-
-                            }
-                            else -> {}
-                        }
-                    }
-                }
-                update?.let { it ->
-                    viewModel.startDownload(getActivityInstance(), it)
-                } ?: run {
-                    dialog.dismiss()
-                }
-            }.run {
-                dialog = create()
-                dialog.show()
-            }
-        }
-        dialog = alertDialog.create()
-        dialog.show()
-    }
-
     private suspend fun getSearchAddress(address: String) = callbackFlow {
         withContext(Dispatchers.IO){
             trySend(SearchProgress.Progress)
@@ -568,7 +498,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
                     }
                 }
             } else {
-                showToast("Turn on location")
+                showToast(getString(R.string.turn_on_location))
                 val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                 startActivity(intent)
             }
