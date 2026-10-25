@@ -34,37 +34,45 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
                 val recognizedPhrases = intent
                     .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
                     .orEmpty()
-                if (recognizedPhrases.isEmpty()) {
-                    disableSpoofing(context)
-                    showMessage(context, R.string.voice_command_failed)
-                    return@launch
-                }
-
-                val entryPoint = EntryPointAccessors.fromApplication(
-                    context.applicationContext,
-                    VoiceCommandEntryPoint::class.java
-                )
-                val favorites = entryPoint.favoriteRepository().getAllFavoritesSnapshot()
                 val normalizedPhrases = recognizedPhrases
                     .map(::normalize)
                     .filter(String::isNotEmpty)
-                    .toSet()
-                val matches = favorites.filter { favorite ->
-                    favorite.address?.let(::normalize)?.let(normalizedPhrases::contains) == true
-                }
-                val favorite = matches.singleOrNull()
-                val latitude = favorite?.lat
-                val longitude = favorite?.lng
-                if (favorite == null || latitude == null || longitude == null) {
-                    disableSpoofing(context)
-                    showMessage(context, R.string.voice_command_failed)
+                if (normalizedPhrases.isEmpty()) {
+                    showMessage(context, R.string.voice_no_matches)
                     return@launch
                 }
 
-                PrefManager.update(start = true, la = latitude, ln = longitude)
-                showActiveLocationNotification(context, favorite.address.orEmpty())
-                VoiceCommandTileService.requestStateUpdate(context)
-                showMessage(context, R.string.voice_location_set, favorite.address.orEmpty())
+                val favorites = EntryPointAccessors.fromApplication(
+                    context.applicationContext,
+                    VoiceCommandEntryPoint::class.java
+                ).favoriteRepository().getAllFavoritesSnapshot()
+                val favoriteByPhrase = favorites.mapNotNull { favorite ->
+                    favorite.address?.let(::normalize)?.takeIf(String::isNotEmpty)
+                        ?.let { normalizedAddress -> normalizedAddress to favorite }
+                }
+                for (phrase in normalizedPhrases) {
+                    if (phrase in STOP_COMMANDS) {
+                        disableSpoofing(context)
+                        showMessage(context, R.string.voice_location_stopped)
+                        return@launch
+                    }
+
+                    val matches = favoriteByPhrase.filter { (address, _) ->
+                        phrase.containsPhrase(address)
+                    }
+                    val favorite = matches.singleOrNull()?.second ?: continue
+                    val latitude = favorite.lat
+                    val longitude = favorite.lng
+                    if (latitude == null || longitude == null) continue
+
+                    PrefManager.update(start = true, la = latitude, ln = longitude)
+                    showActiveLocationNotification(context, favorite.address.orEmpty())
+                    VoiceCommandTileService.requestStateUpdate(context)
+                    showMessage(context, R.string.voice_location_set, favorite.address.orEmpty())
+                    return@launch
+                }
+
+                showMessage(context, R.string.voice_no_matches)
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
@@ -110,6 +118,9 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
             .replace("[^\\p{L}\\p{N}]+".toRegex(), " ")
             .trim()
 
+    private fun String.containsPhrase(phrase: String): Boolean =
+        this == phrase || " $this ".contains(" $phrase ")
+
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface VoiceCommandEntryPoint {
@@ -117,6 +128,20 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private val STOP_COMMANDS = setOf(
+            "стоп",
+            "stop",
+            "выключи геолокацию",
+            "выключить геолокацию",
+            "отключи геолокацию",
+            "отключить геолокацию",
+            "останови подмену",
+            "остановить подмену",
+            "turn off location",
+            "disable location",
+            "stop location"
+        )
+
         const val ACTION_PROCESS_RESULTS =
             "io.github.kovag1978oss.gpssetter.action.PROCESS_VOICE_RESULTS"
     }

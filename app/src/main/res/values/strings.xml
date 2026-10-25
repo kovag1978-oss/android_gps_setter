@@ -92,10 +92,12 @@
     <string name="joystick_disabled">Joystick disabled</string>
     <string name="joystick_enabled">Joystick enabled</string>
     <string name="voice_tile_label">Voice location</string>
-    <string name="voice_tile_subtitle">Say a favorite place</string>
-    <string name="voice_prompt">Say the name of a saved favorite place</string>
+    <string name="voice_tile_subtitle">Say a favorite place or “stop”</string>
+    <string name="voice_prompt">Say a saved favorite place or “stop” to turn spoofing off</string>
     <string name="voice_no_favorites">No favorite places saved; location spoofing is off.</string>
     <string name="voice_command_failed">No matching favorite recognized; location spoofing is off.</string>
+    <string name="voice_no_matches">No matches</string>
+    <string name="voice_location_stopped">Location spoofing turned off</string>
     <string name="voice_location_set">Location set to %1$s</string>
 
 </resources>

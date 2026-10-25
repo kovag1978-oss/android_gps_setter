@@ -39,7 +39,7 @@ The module lists Android System and Google Play services as recommended scope en
 - Randomize the location around the selected point.
 - Adjust the active location with the on-screen joystick.
 - Save, import, and export favorite locations.
-- Use the GPS Setter Quick Settings tile to select a saved favorite by voice. Android's speech-recognition interface opens directly; GPS Setter itself does not open. The current spoofed location remains active while listening; an unrecognized or cancelled command turns spoofing off.
+- Use the GPS Setter Quick Settings tile to select a saved favorite by voice or say “stop” to turn spoofing off. Android's speech-recognition interface opens directly; GPS Setter itself does not open. Recognition checks the speech alternatives in order and allows a favorite name within a longer phrase. Unmatched or cancelled input leaves the current spoofed location unchanged.
 
 ## How it works
 
