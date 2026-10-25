@@ -22,8 +22,6 @@ Download the latest arm64 APK from [GitHub Releases](https://github.com/kovag197
 | **Full** | Google Maps | Google Play services | [Full APK](https://github.com/kovag1978-oss/android_gps_setter/releases/latest/download/app-full-arm64-v8a-release.apk) |
 | **FOSS** | MapLibre | microG | [FOSS APK](https://github.com/kovag1978-oss/android_gps_setter/releases/latest/download/app-foss-arm64-v8a-release.apk) |
 
-This fork uses app ID `io.github.kovag1978_oss.gpssetter`. The app ID changed from `io.github.kovag1978oss.gpssetter`; Android treats these as separate apps, so uninstall the old GPS Setter before installing this version. App data and settings are not transferred.
-
 ## Setup
 
 1. Install the APK and enable **GPS Setter** in LSPosed or Vector.
