@@ -20,7 +20,7 @@ GPS Setter — это модуль Xposed для изменения местоп
 | **Full** | Google Maps | Google Play services | [APK Full](https://github.com/kovag1978-oss/android_gps_setter/releases/latest/download/app-full-arm64-v8a-release.apk) |
 | **FOSS** | MapLibre | microG | [APK FOSS](https://github.com/kovag1978-oss/android_gps_setter/releases/latest/download/app-foss-arm64-v8a-release.apk) |
 
-У этой версии отдельный ID приложения (`io.github.kovag1978oss.gpssetter`), поэтому её можно установить одновременно с оригинальным приложением.
+У этой версии отдельный ID приложения (`io.github.kovag1978_oss.gpssetter`), поэтому её можно установить одновременно с оригинальным приложением.
 
 ## Настройка
 

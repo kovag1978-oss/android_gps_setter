@@ -143,6 +143,6 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         )
 
         const val ACTION_PROCESS_RESULTS =
-            "io.github.kovag1978oss.gpssetter.action.PROCESS_VOICE_RESULTS"
+            "io.github.kovag1978_oss.gpssetter.action.PROCESS_VOICE_RESULTS"
     }
 }

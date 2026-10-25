@@ -6,7 +6,7 @@ name: Generate APK
 env:
   main_project_module: app
   target_owner: Xposed-Modules-Repo
-  target_repo: io.github.kovag1978oss.gpssetter
+  target_repo: io.github.kovag1978_oss.gpssetter
   target_path: target_path
 
 on:
@@ -93,7 +93,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.PAT }}
-          repository: Xposed-Modules-Repo/io.github.kovag1978oss.gpssetter
+          repository: Xposed-Modules-Repo/io.github.kovag1978_oss.gpssetter
           name: v${{ env.version }}
           tag_name: v${{ env.version }}
           body: |
