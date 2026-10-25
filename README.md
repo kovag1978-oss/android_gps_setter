@@ -1,4 +1,4 @@
-# GPS Setter # GPS Setter
+# GPS Setter 
 
 [English](README.md) | [Русский](README.ru.md)
 
