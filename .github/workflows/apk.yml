@@ -76,13 +76,15 @@ jobs:
             ## Changes
             - Add a Quick Settings tile for voice selection of saved favorite locations.
             - Open Android's speech recognizer directly without launching the GPS Setter screen.
-            - Keep the current spoofed location active while listening; apply a unique favorite match, or turn spoofing off if recognition is cancelled or fails.
+            - Improve voice recognition: accept favorite names within longer phrases, recognize stop commands, and leave spoofing unchanged when nothing matches.
+            - Change the application ID to io.github.kovag1978_oss.gpssetter to match the maintainer namespace. Existing installs with the old ID require uninstalling first.
             - Add Russian and English interface language selection, favorites import/export, and manual update checks.
 
             ## Изменения
             - Добавлена плитка быстрых настроек для голосового выбора сохранённых мест.
             - Открывается системное распознавание речи; экран GPS Setter не запускается.
-            - Текущая подмена сохраняется во время распознавания. При единственном совпадении избранное применяется, при отмене или ошибке подмена отключается.
+            - Улучшено распознавание голосовых команд: название избранного распознаётся в составе фразы, команда «стоп» выключает подмену, при отсутствии совпадений состояние не меняется.
+            - ID приложения изменён на io.github.kovag1978_oss.gpssetter в соответствии с namespace владельца. Для обновления со старым ID сначала удалите прежнюю версию; данные не переносятся.
             - Добавлены русский и английский языки интерфейса, импорт/экспорт избранного и ручная проверка обновлений.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
@@ -100,13 +102,15 @@ jobs:
             ## Changes
             - Add a Quick Settings tile for voice selection of saved favorite locations.
             - Open Android's speech recognizer directly without launching the GPS Setter screen.
-            - Keep the current spoofed location active while listening; apply a unique favorite match, or turn spoofing off if recognition is cancelled or fails.
+            - Improve voice recognition: accept favorite names within longer phrases, recognize stop commands, and leave spoofing unchanged when nothing matches.
+            - Change the application ID to io.github.kovag1978_oss.gpssetter to match the maintainer namespace. Existing installs with the old ID require uninstalling first.
             - Add Russian and English interface language selection, favorites import/export, and manual update checks.
 
             ## Изменения
             - Добавлена плитка быстрых настроек для голосового выбора сохранённых мест.
             - Открывается системное распознавание речи; экран GPS Setter не запускается.
-            - Текущая подмена сохраняется во время распознавания. При единственном совпадении избранное применяется, при отмене или ошибке подмена отключается.
+            - Улучшено распознавание голосовых команд: название избранного распознаётся в составе фразы, команда «стоп» выключает подмену, при отсутствии совпадений состояние не меняется.
+            - ID приложения изменён на io.github.kovag1978_oss.gpssetter в соответствии с namespace владельца. Для обновления со старым ID сначала удалите прежнюю версию; данные не переносятся.
             - Добавлены русский и английский языки интерфейса, импорт/экспорт избранного и ручная проверка обновлений.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
