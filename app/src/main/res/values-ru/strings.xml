@@ -59,7 +59,7 @@
     <string name="enable_joystick">Использовать джойстик</string>
     <string name="enable_joystick_summary">Управлять местоположением с помощью джойстика (экспериментально)</string>
     <string name="advanced_hook">Подмена системного местоположения</string>
-    <string name="advanced_summary">Подменять местоположение системы для более точной работы (требуется перезагрузка)</string>
+    <string name="advanced_summary">Подменяет координаты на уровне Android, а не только в выбранных приложениях; может повлиять на приложения, использующие данные GNSS. В LSPosed включите Android System и перезагрузите устройство.</string>
     <string name="xposed_scope_title">Область действия LSPosed / Vector</string>
     <string name="xposed_scope_summary">Включите Android System для подмены системного местоположения и Google Play services для местоположения GMS. Для подмены в отдельных приложениях также включите каждое нужное приложение.</string>
     <string name="random_position">Случайное местоположение</string>

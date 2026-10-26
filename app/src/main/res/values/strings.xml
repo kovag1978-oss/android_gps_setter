@@ -70,7 +70,7 @@
     <string name="enable_joystick">Use joystick</string>
     <string name="enable_joystick_summary">Control your location with a joystick (experimental)</string>
     <string name="advanced_hook">Hook system location</string>
-    <string name="advanced_summary">Hook system for better location setting (reboot required)</string>
+    <string name="advanced_summary">Spoofs location at the Android system level, not only in selected apps; apps using GNSS data may be affected. Enable Android System in LSPosed and reboot the device.</string>
     <string name="xposed_scope_title">LSPosed / Vector scope</string>
     <string name="xposed_scope_summary">Enable Android System for system hooking and Google Play services for GMS location. For app-only hooking, also enable each app whose location you want to change.</string>
     <string name="random_position">Random location</string>

@@ -57,6 +57,7 @@
             android:title="@string/advanced_hook"
             android:summary="@string/advanced_summary"
             android:key="system_hooked"
+            android:defaultValue="true"
             android:icon="@drawable/ic_advanced_hook"
             android:widgetLayout="@layout/preference_switch_widget"
         />
