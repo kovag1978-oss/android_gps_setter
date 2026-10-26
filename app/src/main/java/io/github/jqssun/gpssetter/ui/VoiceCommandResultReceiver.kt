@@ -46,6 +46,11 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
                     context.applicationContext,
                     VoiceCommandEntryPoint::class.java
                 ).favoriteRepository().getAllFavoritesSnapshot()
+                if (favorites.isEmpty()) {
+                    showMessage(context, R.string.voice_no_favorites)
+                    return@launch
+                }
+
                 val favoriteByPhrase = favorites.mapNotNull { favorite ->
                     favorite.address?.let(::normalize)?.takeIf(String::isNotEmpty)
                         ?.let { normalizedAddress -> normalizedAddress to favorite }
@@ -73,6 +78,12 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
                 }
 
                 showMessage(context, R.string.voice_no_matches)
+                withContext(Dispatchers.Main) {
+                    context.startActivity(
+                        VoiceCommandTileService.createRecognitionIntent(context)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {

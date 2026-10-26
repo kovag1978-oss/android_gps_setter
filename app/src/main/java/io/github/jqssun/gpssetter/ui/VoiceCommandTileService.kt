@@ -21,30 +21,7 @@ class VoiceCommandTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val resultIntent = Intent(this, VoiceCommandResultReceiver::class.java).apply {
-            action = VoiceCommandResultReceiver.ACTION_PROCESS_RESULTS
-            data = Uri.parse("gpssetter://voice-command/${System.currentTimeMillis()}")
-        }
-        val resultPendingIntent = PendingIntent.getBroadcast(
-            this,
-            0,
-            resultIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
-        val recognitionIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(
-                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-            )
-            putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.voice_prompt))
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, voiceLanguageTag())
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
-            putExtra(RecognizerIntent.EXTRA_RESULTS_PENDINGINTENT, resultPendingIntent)
-            putExtra(
-                RecognizerIntent.EXTRA_RESULTS_PENDINGINTENT_BUNDLE,
-                Bundle()
-            )
-        }
+        val recognitionIntent = createRecognitionIntent(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val recognitionPendingIntent = PendingIntent.getActivity(
                 this,
@@ -58,10 +35,6 @@ class VoiceCommandTileService : TileService() {
         }
     }
 
-    private fun voiceLanguageTag(): String =
-        androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags()
-            .ifEmpty { java.util.Locale.getDefault().toLanguageTag() }
-
     private fun updateTileState() {
         qsTile?.let { tile ->
             tile.state = if (PrefManager.isStarted) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
@@ -74,6 +47,34 @@ class VoiceCommandTileService : TileService() {
     }
 
     companion object {
+        fun createRecognitionIntent(context: android.content.Context): Intent {
+            val resultIntent = Intent(context, VoiceCommandResultReceiver::class.java).apply {
+                action = VoiceCommandResultReceiver.ACTION_PROCESS_RESULTS
+                data = Uri.parse("gpssetter://voice-command/${System.currentTimeMillis()}")
+            }
+            val resultPendingIntent = PendingIntent.getBroadcast(
+                context,
+                0,
+                resultIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+            return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                )
+                putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_prompt))
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, voiceLanguageTag())
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
+                putExtra(RecognizerIntent.EXTRA_RESULTS_PENDINGINTENT, resultPendingIntent)
+                putExtra(RecognizerIntent.EXTRA_RESULTS_PENDINGINTENT_BUNDLE, Bundle())
+            }
+        }
+
+        private fun voiceLanguageTag(): String =
+            androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags()
+                .ifEmpty { java.util.Locale.getDefault().toLanguageTag() }
+
         fun requestStateUpdate(context: android.content.Context) {
             requestListeningState(
                 context,
