@@ -100,6 +100,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
     protected abstract fun getActivityInstance(): BaseMapActivity
     protected abstract fun hasMarker(): Boolean
     protected abstract fun initializeMap()
+    protected abstract fun refreshMapType()
     protected abstract fun setupButtons()
     protected abstract fun moveMapToNewLocation(moveNewLocation: Boolean)
 
@@ -258,6 +259,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        refreshMapType()
         viewModel.updateXposedState()
         binding.startButton.visibility = if (PrefManager.isStarted) View.GONE else View.VISIBLE
         binding.stopButton.visibility = if (PrefManager.isStarted) View.VISIBLE else View.GONE

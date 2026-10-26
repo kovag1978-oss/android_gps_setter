@@ -32,6 +32,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
     private lateinit var mMap: MapLibreMap
     private var mLatLng: LatLng? = null
     private var mMarker: Marker? = null
+    private var appliedMapType: Int? = null
 
     override fun hasMarker(): Boolean {
         // TODO: if (!mMarker?.isVisible!!){
@@ -64,6 +65,35 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
             .commit()
         mapFragment?.getMapAsync(this)
     }
+    override fun refreshMapType() {
+        if (!::mMap.isInitialized) return
+
+        val selectedMapType = viewModel.mapType
+        if (selectedMapType == appliedMapType) return
+
+        appliedMapType = selectedMapType
+        val typeUrl = when (selectedMapType) {
+            2 -> "mapbox://styles/mapbox/satellite-streets-v12"
+            3 -> "mapbox://styles/mapbox/outdoors-v12"
+            4 -> "mapbox://styles/mapbox/navigation-day-v1"
+            else -> "mapbox://styles/mapbox/streets-v12"
+        }
+        mMap.setStyle(typeUrl) { style ->
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                val locationComponent = mMap.locationComponent
+                locationComponent.activateLocationComponent(
+                    LocationComponentActivationOptions.builder(this, style)
+                        .useDefaultLocationEngine(true)
+                        .build()
+                )
+                locationComponent.isLocationComponentEnabled = true
+                locationComponent.cameraMode = CameraMode.TRACKING
+                locationComponent.renderMode = RenderMode.COMPASS
+            } else {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 99)
+            }
+        }
+    }
     override fun moveMapToNewLocation(moveNewLocation: Boolean) {
         if (moveNewLocation) {
             mLatLng = LatLng(lat, lon)
@@ -92,31 +122,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
 
 
             // maplibre custom ui
-            var typeUrl = "https://demotiles.maplibre.org/style.json"
-            if (viewModel.mapType.equals(2)) { // Satellite
-                typeUrl = "mapbox://styles/mapbox/satellite-streets-v12"
-            } else if (viewModel.mapType.equals(3)) { // Terrain
-                typeUrl = "mapbox://styles/mapbox/outdoors-v12"
-            } else if (viewModel.mapType.equals(4)) { // Hybrid
-                typeUrl = "mapbox://styles/mapbox/navigation-day-v1"
-            } else {
-                typeUrl = "mapbox://styles/mapbox/streets-v12"
-            }
-            setStyle(typeUrl) { style ->
-                if (ActivityCompat.checkSelfPermission(this@MapActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) { 
-                    val locationComponent = mMap.locationComponent
-                    locationComponent.activateLocationComponent(
-                        LocationComponentActivationOptions.builder(this@MapActivity, style)
-                        .useDefaultLocationEngine(true)
-                        .build()
-                    )
-                    locationComponent.isLocationComponentEnabled = true
-                    locationComponent.cameraMode = CameraMode.TRACKING
-                    locationComponent.renderMode = RenderMode.COMPASS
-                } else {
-                    ActivityCompat.requestPermissions(this@MapActivity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 99);
-                }
-            }
+            refreshMapType()
             // TODO: fix bug with drawer
             uiSettings.setAllGesturesEnabled(true)
             uiSettings.setCompassEnabled(true)

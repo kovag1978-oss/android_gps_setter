@@ -28,6 +28,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
     private lateinit var mMap: GoogleMap
     private var mLatLng: LatLng? = null
     private var mMarker: Marker? = null
+    private var appliedMapType: Int? = null
 
     override fun hasMarker(): Boolean {
         if (!mMarker?.isVisible!!) {
@@ -48,6 +49,15 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
             .replace(R.id.map, mapFragment)
             .commit()
         mapFragment?.getMapAsync(this)
+    }
+    override fun refreshMapType() {
+        if (!::mMap.isInitialized) return
+
+        val selectedMapType = viewModel.mapType
+        if (selectedMapType != appliedMapType) {
+            mMap.mapType = selectedMapType
+            appliedMapType = selectedMapType
+        }
     }
     override fun moveMapToNewLocation(moveNewLocation: Boolean) {
         if (moveNewLocation) {
@@ -85,7 +95,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
             uiSettings.isZoomControlsEnabled = false
             uiSettings.isCompassEnabled = false
             setPadding(0,80,0,0)
-            mapType = viewModel.mapType
+            refreshMapType()
 
 
             val zoom = 12.0f
