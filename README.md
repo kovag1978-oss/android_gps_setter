@@ -7,7 +7,7 @@
 [![License: GPL-3.0](https://img.shields.io/github/license/kovag1978-oss/android_gps_setter)](LICENSE)
 [![Open issues](https://img.shields.io/github/issues/kovag1978-oss/android_gps_setter)](https://github.com/kovag1978-oss/android_gps_setter/issues)
 
-GPS Setter is an Xposed module for changing the location seen by Android apps. It supports system-wide location hooking and hooking selected apps.
+Pick a place once, then switch saved locations by voice from Android Quick Settings without opening GPS Setter. GPS Setter is an Xposed location module with system-wide or per-app scope, joystick adjustment, and randomized nearby coordinates.
 
 > **Requirements:** Android 8.1 or later and an Xposed-compatible framework, such as LSPosed or Vector. Root is required for LSPosed/Vector. LSPatch is also supported with a manually embedded location.
 
