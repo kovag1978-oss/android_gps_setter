@@ -6,6 +6,7 @@
 [![Downloads](https://img.shields.io/github/downloads/kovag1978-oss/android_gps_setter/total)](https://github.com/kovag1978-oss/android_gps_setter/releases)
 [![License: GPL-3.0](https://img.shields.io/github/license/kovag1978-oss/android_gps_setter)](LICENSE)
 [![Open issues](https://img.shields.io/github/issues/kovag1978-oss/android_gps_setter)](https://github.com/kovag1978-oss/android_gps_setter/issues)
+[![LSPosed module](https://img.shields.io/badge/LSPosed-Module-blue)](https://modules.lsposed.org/module/io.github.kovag1978_oss.gpssetter/)
 
 Pick a place once, then switch saved locations by voice from Android Quick Settings without opening GPS Setter. GPS Setter is an Xposed location module with system-wide or per-app scope, joystick adjustment, and randomized nearby coordinates.
 
