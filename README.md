@@ -45,10 +45,10 @@ Each active app profile has its own ongoing notification. Applying a new locatio
 Add the GPS Setter tile to Android Quick Settings and tap it to open Android's speech recognizer. GPS Setter itself does not need to be opened.
 
 - With separate control enabled, the first prompt lists the enabled apps' voice commands and saved favorites and is labeled **Step 1 of 2**.
-- Say a favorite name to apply that location to all enabled app profiles in one step, or say **выключить** to stop all system and app spoofing.
-- Say an app's voice command to select it. After a short pause, the recognizer starts **Step 2 of 2** and names the selected app; say a favorite to set its location or **выключить** to stop spoofing for that app.
-- With separate control disabled, say a favorite name to set the system location or **выключить** to stop system spoofing.
-- App voice commands must be unique and cannot be **выключить**. Favorite names can be included in longer phrases. Unmatched or cancelled input leaves the current spoofing state unchanged.
+- Say a favorite name to apply that location to all enabled app profiles in one step, or say **“turn off”** to stop all system and app spoofing.
+- Say an app's voice command to select it. After a short pause, the recognizer starts **Step 2 of 2** and names the selected app; say a favorite to set its location or **“turn off”** to stop spoofing for that app.
+- With separate control disabled, say a favorite name to set the system location or **“turn off”** to stop system spoofing.
+- App voice commands must be unique and cannot be the localized stop command (**“turn off”** in English, **«выключить»** in Russian). Favorite names can be included in longer phrases. Unmatched or cancelled input leaves the current spoofing state unchanged.
 
 The recognition prompt includes the configured app commands and saved favorite names. A long list may be truncated by the speech-recognition app.
 

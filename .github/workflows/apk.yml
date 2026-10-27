@@ -77,13 +77,15 @@ jobs:
             - Show active spoofed locations on the map with colored app markers; nearby markers cluster into visible color dots and expand into a spider layout when tapped.
             - Configure each managed app's voice command and map marker color in its profile.
             - Keep active location notifications ongoing and run a foreground service while system or app-specific spoofing is active.
-            - Make “выключить” the stop command at both voice-recognition steps, and clarify the two-step prompts with a pause before step two.
+            - Localize the voice stop command to the app language (“turn off” in English and “выключить” in Russian) across recognition, prompts, and reserved app commands.
+            - Clarify the two-step voice prompts and pause before step two.
 
             ## Изменения
             - Активные подменённые геопозиции отображаются на карте цветными маркерами приложений; близкие точки объединяются в кластеры с видимыми цветными точками и раскрываются «паучком» по нажатию.
             - Для каждого управляемого приложения в профиле настраиваются голосовая команда и цвет маркера.
             - Уведомления активной подмены нельзя смахнуть; foreground service работает, пока активна системная или приложенческая подмена.
-            - Команда остановки «выключить» работает на обоих шагах распознавания; шаги подписаны, перед вторым шагом добавлена пауза.
+            - Команда остановки соответствует языку приложения («выключить» на русском, “turn off” на английском) в распознавании, подсказках и проверке команд приложений.
+            - Два шага голосового управления явно подписаны; перед вторым шагом добавлена пауза.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
@@ -101,13 +103,15 @@ jobs:
             - Show active spoofed locations on the map with colored app markers; nearby markers cluster into visible color dots and expand into a spider layout when tapped.
             - Configure each managed app's voice command and map marker color in its profile.
             - Keep active location notifications ongoing and run a foreground service while system or app-specific spoofing is active.
-            - Make “выключить” the stop command at both voice-recognition steps, and clarify the two-step prompts with a pause before step two.
+            - Localize the voice stop command to the app language (“turn off” in English and “выключить” in Russian) across recognition, prompts, and reserved app commands.
+            - Clarify the two-step voice prompts and pause before step two.
 
             ## Изменения
             - Активные подменённые геопозиции отображаются на карте цветными маркерами приложений; близкие точки объединяются в кластеры с видимыми цветными точками и раскрываются «паучком» по нажатию.
             - Для каждого управляемого приложения в профиле настраиваются голосовая команда и цвет маркера.
             - Уведомления активной подмены нельзя смахнуть; foreground service работает, пока активна системная или приложенческая подмена.
-            - Команда остановки «выключить» работает на обоих шагах распознавания; шаги подписаны, перед вторым шагом добавлена пауза.
+            - Команда остановки соответствует языку приложения («выключить» на русском, “turn off” на английском) в распознавании, подсказках и проверке команд приложений.
+            - Два шага голосового управления явно подписаны; перед вторым шагом добавлена пауза.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk

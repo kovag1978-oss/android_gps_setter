@@ -74,7 +74,10 @@ class VoiceCommandTileService : TileService() {
                     RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
                 )
                 val prompt = when {
-                    !PrefManager.isSeparateControlEnabled -> context.getString(R.string.voice_prompt)
+                    !PrefManager.isSeparateControlEnabled -> context.getString(
+                        R.string.voice_prompt,
+                        context.getString(R.string.voice_stop_command)
+                    )
                     PrefManager.pendingVoiceTarget == null -> targetRecognitionPrompt(context)
                     else -> favoriteRecognitionPrompt(context)
                 }
@@ -97,7 +100,12 @@ class VoiceCommandTileService : TileService() {
             val favorites = favoriteNames(context)
                 .joinToString()
                 .ifEmpty { context.getString(R.string.voice_no_saved_favorites) }
-            return context.getString(R.string.voice_target_prompt, appCommands, favorites)
+            return context.getString(
+                R.string.voice_target_prompt,
+                appCommands,
+                favorites,
+                context.getString(R.string.voice_stop_command)
+            )
         }
 
         private fun favoriteRecognitionPrompt(context: android.content.Context): String {
@@ -113,7 +121,12 @@ class VoiceCommandTileService : TileService() {
                     ?.appName
                     ?: context.getString(R.string.voice_system_target)
             }
-            return context.getString(R.string.voice_location_prompt, targetName, favorites)
+            return context.getString(
+                R.string.voice_location_prompt,
+                targetName,
+                favorites,
+                context.getString(R.string.voice_stop_command)
+            )
         }
 
         private fun favoriteNames(context: android.content.Context): List<String> =

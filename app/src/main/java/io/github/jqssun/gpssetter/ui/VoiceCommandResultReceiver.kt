@@ -46,7 +46,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
                 if (PrefManager.isSeparateControlEnabled) {
                     val target = PrefManager.pendingVoiceTarget
                     if (target == null) {
-                        if (phrases.any { it in VoiceCommandText.stopCommands }) {
+                        if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
                             stopAllSpoofing(context)
                         } else if (!applyFavoriteToAllManagedApps(context, phrases)) {
                             selectTarget(context, phrases)
@@ -122,7 +122,12 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
 
             PrefManager.pendingVoiceTarget = target
             val label = profiles.first { it.packageName == target }.appName
-            showMessage(context, R.string.voice_target_selected, label)
+            showMessage(
+                context,
+                R.string.voice_target_selected,
+                label,
+                context.getString(R.string.voice_stop_command)
+            )
             delay(SECOND_STEP_DELAY_MILLIS)
             startNextRecognition(context)
             return
@@ -137,7 +142,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         target: String,
         phrases: List<String>
     ) {
-        if (phrases.any { it in VoiceCommandText.stopCommands }) {
+        if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
             if (target == SYSTEM_TARGET) {
                 disableGlobalSpoofing(context)
             } else {
@@ -204,7 +209,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
     }
 
     private suspend fun processGlobalCommand(context: Context, phrases: List<String>) {
-        if (phrases.any { it in VoiceCommandText.stopCommands }) {
+        if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
             disableGlobalSpoofing(context)
             showMessage(context, R.string.voice_location_stopped)
             return

@@ -88,7 +88,7 @@ class AppProfilesActivity : AppCompatActivity() {
                                 it.enabled &&
                                 VoiceCommandText.normalize(it.voiceCommand) == normalized
                         }
-                        if (normalized in VoiceCommandText.reservedCommands || duplicate) {
+                        if (VoiceCommandText.isReservedCommand(command, requireContext()) || duplicate) {
                             Toast.makeText(
                                 requireContext(),
                                 R.string.app_voice_command_duplicate,
@@ -144,7 +144,7 @@ class AppProfilesActivity : AppCompatActivity() {
                         }
                         if (enabled) {
                             val normalized = VoiceCommandText.normalize(latest.voiceCommand)
-                            val duplicate = normalized in VoiceCommandText.reservedCommands ||
+                            val duplicate = VoiceCommandText.isReservedCommand(latest.voiceCommand, requireContext()) ||
                                 PrefManager.appLocationProfiles.any {
                                     it.packageName != packageName &&
                                         it.enabled &&
