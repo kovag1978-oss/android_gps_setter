@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 import io.github.jqssun.gpssetter.utils.PrefManager
+import io.github.jqssun.gpssetter.utils.ActiveSpoofingService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import timber.log.Timber
@@ -27,5 +28,6 @@ class App : Application() {
         gsApp = this
         commonInit()
         AppCompatDelegate.setDefaultNightMode(PrefManager.darkTheme)
+        ActiveSpoofingService.sync(this)
     }
 }

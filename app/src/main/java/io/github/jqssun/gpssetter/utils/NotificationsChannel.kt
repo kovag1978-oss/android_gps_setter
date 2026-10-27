@@ -40,8 +40,11 @@ class NotificationsChannel{
             it.setContentTitle(context.getString(R.string.active_location))
             it.setContentText(address)
             it.setOngoing(true)
+            it.setAutoCancel(false)
             it.setCategory(Notification.CATEGORY_SERVICE)
             it.priority = NotificationCompat.PRIORITY_MAX
+        }.apply {
+            flags = flags or Notification.FLAG_NO_CLEAR or Notification.FLAG_ONGOING_EVENT
         }
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (packageName == null) {

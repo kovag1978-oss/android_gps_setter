@@ -19,6 +19,7 @@ import io.github.jqssun.gpssetter.utils.VoiceCommandText.containsPhrase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -45,7 +46,9 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
                 if (PrefManager.isSeparateControlEnabled) {
                     val target = PrefManager.pendingVoiceTarget
                     if (target == null) {
-                        if (!applyFavoriteToAllManagedApps(context, phrases)) {
+                        if (phrases.any { it in VoiceCommandText.stopCommands }) {
+                            stopAllSpoofing(context)
+                        } else if (!applyFavoriteToAllManagedApps(context, phrases)) {
                             selectTarget(context, phrases)
                         }
                     } else {
@@ -120,6 +123,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
             PrefManager.pendingVoiceTarget = target
             val label = profiles.first { it.packageName == target }.appName
             showMessage(context, R.string.voice_target_selected, label)
+            delay(SECOND_STEP_DELAY_MILLIS)
             startNextRecognition(context)
             return
         }
@@ -242,6 +246,19 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         updateTileAndNotification(context)
     }
 
+    private suspend fun stopAllSpoofing(context: Context) {
+        val notifications = NotificationsChannel()
+        PrefManager.update(start = false, la = PrefManager.getLat, ln = PrefManager.getLng)
+        PrefManager.appLocationProfiles
+            .filter { it.started }
+            .forEach { notifications.cancelManagedLocationNotification(context, it.packageName) }
+        PrefManager.stopAllAppLocations()
+        PrefManager.pendingVoiceTarget = null
+        notifications.cancelLocationNotification(context)
+        updateTileAndNotification(context)
+        showMessage(context, R.string.all_locations_stopped)
+    }
+
     private suspend fun updateTileAndNotification(context: Context) {
         withContext(Dispatchers.Main) {
             VoiceCommandTileService.requestStateUpdate(context)
@@ -296,6 +313,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val SECOND_STEP_DELAY_MILLIS = 2_500L
         private const val SYSTEM_TARGET = "@system"
         const val ACTION_PROCESS_RESULTS =
             "io.github.kovag1978_oss.gpssetter.action.PROCESS_VOICE_RESULTS"

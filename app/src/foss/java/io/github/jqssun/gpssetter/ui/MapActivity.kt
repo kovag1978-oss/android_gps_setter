@@ -4,6 +4,11 @@ package io.github.jqssun.gpssetter.ui
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
 import android.view.View
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
@@ -15,6 +20,10 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.WellKnownTileServer
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
+import org.maplibre.android.annotations.Polyline
+import org.maplibre.android.annotations.PolylineOptions
+import org.maplibre.android.annotations.Icon
+import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
@@ -24,6 +33,7 @@ import org.maplibre.android.location.modes.RenderMode
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.OnMapReadyCallback
 import org.maplibre.android.maps.SupportMapFragment
+import io.github.jqssun.gpssetter.utils.LocationClusterIcon
 
 typealias CustomLatLng = LatLng
 
@@ -32,6 +42,12 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
     private lateinit var mMap: MapLibreMap
     private var mLatLng: LatLng? = null
     private var mMarker: Marker? = null
+    private val activeMarkers = mutableListOf<Marker>()
+    private val markerIcons = mutableMapOf<Int, Icon>()
+    private val clusterMembers = mutableMapOf<Marker, List<ActiveMapLocation>>()
+    private val spiderMarkers = mutableListOf<Marker>()
+    private val spiderLines = mutableListOf<Polyline>()
+    private var spiderExpanded = false
     private var appliedMapType: Int? = null
 
     override fun hasMarker(): Boolean {
@@ -45,12 +61,47 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
         // TODO: mMarker?.isVisible = true
         if (mMarker == null) {
             mMarker = mMap.addMarker(
-                MarkerOptions().position(it)
+                MarkerOptions()
+                    .position(it)
+                    .icon(createMarkerIcon(Color.BLACK))
             )
         } else {
             mMarker?.position = it!!
         }
     }
+    private fun createMarkerIcon(hue: Float): Icon =
+        createMarkerIcon(Color.HSVToColor(floatArrayOf(hue, 1f, 0.9f)))
+
+    private fun createMarkerIcon(color: Int): Icon =
+        markerIcons.getOrPut(color) {
+            val bitmap = Bitmap.createBitmap(96, 128, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            val pin = Path().apply {
+                moveTo(48f, 124f)
+                cubicTo(39f, 108f, 7f, 72f, 7f, 46f)
+                cubicTo(7f, 23f, 25f, 5f, 48f, 5f)
+                cubicTo(71f, 5f, 89f, 23f, 89f, 46f)
+                cubicTo(89f, 72f, 57f, 108f, 48f, 124f)
+                close()
+            }
+            canvas.drawPath(pin, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = color
+                style = Paint.Style.FILL
+            })
+            canvas.drawCircle(48f, 46f, 18f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = Color.WHITE
+                style = Paint.Style.FILL
+            })
+            IconFactory.getInstance(this).fromBitmap(bitmap)
+        }
+    private fun createClusterIcon(group: List<ActiveMapLocation>): Icon =
+        IconFactory.getInstance(this).fromBitmap(
+            LocationClusterIcon.create(
+                group.map { it.colorHue },
+                group.size,
+                resources.displayMetrics.density
+            )
+        )
     private fun removeMarker() {
         mMarker?.remove() // mMarker?.isVisible = false
         mMarker = null
@@ -92,7 +143,79 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
             } else {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 99)
             }
+            refreshActiveLocations(getActiveMapLocations())
         }
+    }
+    override fun refreshActiveLocations(locations: List<ActiveMapLocation>) {
+        if (!::mMap.isInitialized) return
+
+        clearSpider()
+        activeMarkers.forEach(Marker::remove)
+        activeMarkers.clear()
+        clusterMembers.clear()
+        val groups = groupMapLocations(locations) { location ->
+            mMap.projection.toScreenLocation(
+                LatLng(location.latitude, location.longitude)
+            )
+        }
+        groups.forEach { group ->
+            val center = clusterCenter(group)
+            val options = MarkerOptions()
+                .position(LatLng(center.latitude, center.longitude))
+                .title(group.joinToString { it.title })
+            if (group.size == 1) {
+                options.icon(createMarkerIcon(center.colorHue))
+            } else {
+                options.icon(createClusterIcon(group))
+                    .snippet(getString(R.string.location_cluster_count, group.size))
+            }
+            mMap.addMarker(
+                options
+            )?.let { marker ->
+                activeMarkers += marker
+                if (group.size > 1) clusterMembers[marker] = group
+            }
+        }
+    }
+    private fun expandCluster(group: List<ActiveMapLocation>) {
+        clearSpider()
+        spiderExpanded = true
+        val center = clusterCenter(group)
+        val centerPoint = mMap.projection.toScreenLocation(LatLng(center.latitude, center.longitude))
+        val density = resources.displayMetrics.density
+        group.forEachIndexed { index, location ->
+            val ring = index / 8
+            val ringIndex = index % 8
+            val ringSize = minOf(8, group.size - ring * 8)
+            val radius = (64f + ring * 48f) * density
+            val angle = -Math.PI / 2 + 2 * Math.PI * ringIndex / ringSize
+            val expandedPosition = mMap.projection.fromScreenLocation(
+                android.graphics.PointF(
+                    (centerPoint.x + kotlin.math.cos(angle) * radius).toFloat(),
+                    (centerPoint.y + kotlin.math.sin(angle) * radius).toFloat()
+                )
+            )
+            spiderLines += mMap.addPolyline(
+                PolylineOptions()
+                    .add(LatLng(location.latitude, location.longitude), expandedPosition)
+                    .color(Color.HSVToColor(floatArrayOf(location.colorHue, 1f, 0.9f)))
+                    .width(2f)
+            )
+            mMap.addMarker(
+                MarkerOptions()
+                    .position(expandedPosition)
+                    .title(location.title)
+                    .icon(createMarkerIcon(location.colorHue))
+            )?.let(spiderMarkers::add)
+        }
+    }
+
+    private fun clearSpider() {
+        spiderMarkers.forEach(Marker::remove)
+        spiderMarkers.clear()
+        spiderLines.forEach(Polyline::remove)
+        spiderLines.clear()
+        spiderExpanded = false
     }
     override fun moveMapToNewLocation(moveNewLocation: Boolean) {
         if (moveNewLocation) {
@@ -146,6 +269,19 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
             }
 
             addOnMapClickListener(this@MapActivity)
+            setOnMarkerClickListener { marker ->
+                val members = clusterMembers[marker]
+                if (members != null) {
+                    expandCluster(members)
+                    true
+                } else {
+                    false
+                }
+            }
+            addOnCameraIdleListener {
+                if (spiderExpanded) clearSpider()
+                refreshActiveLocations(getActiveMapLocations())
+            }
             if (viewModel.isStarted){
                 mMarker?.let {
                     // TODO:
@@ -153,6 +289,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
                     // it.showInfoWindow()
                 }
             }
+            refreshActiveLocations(getActiveMapLocations())
         }
     }
     override fun onMapClick(latLng: LatLng): Boolean {

@@ -4,19 +4,7 @@ import java.text.Normalizer
 import java.util.Locale
 
 object VoiceCommandText {
-    val stopCommands = setOf(
-        "стоп",
-        "stop",
-        "выключи геолокацию",
-        "выключить геолокацию",
-        "отключи геолокацию",
-        "отключить геолокацию",
-        "останови подмену",
-        "остановить подмену",
-        "turn off location",
-        "disable location",
-        "stop location"
-    )
+    val stopCommands = setOf("выключить")
     val reservedCommands = stopCommands
 
     fun normalize(value: String): String =

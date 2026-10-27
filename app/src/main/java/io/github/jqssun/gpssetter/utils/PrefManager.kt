@@ -109,6 +109,7 @@ object PrefManager   {
         }
 
     fun saveAppLocationProfile(profile: AppLocationProfile) {
+        val wasSpoofingActive = isSpoofingActive
         val profiles = appLocationProfiles
             .filterNot { it.packageName == profile.packageName }
             .plus(profile)
@@ -117,6 +118,7 @@ object PrefManager   {
                 .putString(APP_PROFILES, AppLocationProfileCodec.encode(profiles))
                 .commit()
         ) { "Failed to save app location profile" }
+        syncForegroundServiceIfActivityChanged(wasSpoofingActive)
     }
 
     fun setAppLocation(packageName: String, start: Boolean, latitude: Double? = null, longitude: Double? = null) {
@@ -161,19 +163,42 @@ object PrefManager   {
     }
 
     private fun saveAppLocationProfiles(profiles: List<AppLocationProfile>) {
+        val wasSpoofingActive = isSpoofingActive
         check(
             pref.edit()
                 .putString(APP_PROFILES, AppLocationProfileCodec.encode(profiles))
                 .commit()
         ) { "Failed to save app location profiles" }
+        syncForegroundServiceIfActivityChanged(wasSpoofingActive)
     }
 
     fun update(start:Boolean, la: Double, ln: Double) {
+        val wasSpoofingActive = isSpoofingActive
         pref.edit()
             .putFloat(LATITUDE, la.toFloat())
             .putFloat(LONGITUDE, ln.toFloat())
             .putBoolean(START, start)
             .apply()
+        syncForegroundServiceIfActivityChanged(wasSpoofingActive)
+    }
+
+    private val isSpoofingActive: Boolean
+        get() = isStarted || hasActiveAppProfile
+
+    private fun syncForegroundServiceIfActivityChanged(wasActive: Boolean) {
+        if (wasActive != isSpoofingActive) {
+            ActiveSpoofingService.sync(gsApp)
+        }
+    }
+
+    fun registerActiveLocationChangeListener(onChanged: () -> Unit): () -> Unit {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == START || key == LATITUDE || key == LONGITUDE || key == APP_PROFILES) {
+                onChanged()
+            }
+        }
+        pref.registerOnSharedPreferenceChangeListener(listener)
+        return { pref.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
 }

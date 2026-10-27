@@ -7,7 +7,7 @@ plugins {
     id 'com.google.devtools.ksp'
 }
 
-def tagName = '0.0.10'
+def tagName = '0.0.11'
 def signingPropertiesFile = rootProject.file("local.properties")
 def signingProperties = new Properties()
 if (signingPropertiesFile.exists()) {
@@ -22,7 +22,7 @@ android {
         applicationId "io.github.kovag1978_oss.gpssetter"
         minSdk 27
         targetSdk 34
-        versionCode 10
+        versionCode 11
         versionName tagName
         // testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "TAG_NAME", "\"${tagName}\"")

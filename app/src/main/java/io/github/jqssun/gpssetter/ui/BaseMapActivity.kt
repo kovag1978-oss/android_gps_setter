@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.SQLException
 import android.graphics.Color
+import android.graphics.PointF
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
@@ -103,8 +104,18 @@ abstract class BaseMapActivity: AppCompatActivity() {
     protected abstract fun hasMarker(): Boolean
     protected abstract fun initializeMap()
     protected abstract fun refreshMapType()
+    protected abstract fun refreshActiveLocations(locations: List<ActiveMapLocation>)
     protected abstract fun setupButtons()
     protected abstract fun moveMapToNewLocation(moveNewLocation: Boolean)
+
+    protected data class ActiveMapLocation(
+        val title: String,
+        val latitude: Double,
+        val longitude: Double,
+        val colorHue: Float
+    )
+
+    private var unregisterActiveLocationListener: (() -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,6 +136,23 @@ abstract class BaseMapActivity: AppCompatActivity() {
             startService(Intent(this, JoystickService::class.java))
         }
         promptRestartAfterAppUpdate()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        unregisterActiveLocationListener = PrefManager.registerActiveLocationChangeListener {
+            runOnUiThread {
+                if (!isFinishing && !isDestroyed) {
+                    refreshActiveLocations(getActiveMapLocations())
+                }
+            }
+        }
+    }
+
+    override fun onStop() {
+        unregisterActiveLocationListener?.invoke()
+        unregisterActiveLocationListener = null
+        super.onStop()
     }
 
     private fun requestNotificationsPermissionIfNeeded() {
@@ -264,8 +292,68 @@ abstract class BaseMapActivity: AppCompatActivity() {
         refreshMapType()
         viewModel.updateXposedState()
         updateLocationButtonVisibility()
+        refreshActiveLocations(getActiveMapLocations())
         VoiceCommandTileService.requestStateUpdate(this)
     }
+
+    protected fun getActiveMapLocations(): List<ActiveMapLocation> = buildList {
+        if (PrefManager.isStarted) {
+            add(
+                ActiveMapLocation(
+                    getString(R.string.voice_system_target),
+                    PrefManager.getLat,
+                    PrefManager.getLng,
+                    0f
+                )
+            )
+        }
+        PrefManager.appLocationProfiles
+            .filter { it.enabled && it.started }
+            .forEach { profile ->
+                add(
+                    ActiveMapLocation(
+                        profile.appName,
+                        profile.latitude,
+                        profile.longitude,
+                        profile.markerColorHue
+                    )
+                )
+            }
+    }
+
+    protected fun groupMapLocations(
+        locations: List<ActiveMapLocation>,
+        screenPoint: (ActiveMapLocation) -> PointF
+    ): List<List<ActiveMapLocation>> {
+        val points = locations.map(screenPoint)
+        val parents = IntArray(locations.size) { it }
+        fun root(index: Int): Int {
+            if (parents[index] != index) parents[index] = root(parents[index])
+            return parents[index]
+        }
+        for (first in locations.indices) {
+            for (second in first + 1 until locations.size) {
+                val dx = points[first].x - points[second].x
+                val dy = points[first].y - points[second].y
+                if (dx * dx + dy * dy <= clusterDistancePx * clusterDistancePx) {
+                    parents[root(second)] = root(first)
+                }
+            }
+        }
+        return locations.indices
+            .groupBy(::root)
+            .values
+            .map { indices -> indices.map(locations::get) }
+    }
+
+    protected fun clusterCenter(locations: List<ActiveMapLocation>): ActiveMapLocation =
+        locations.first().copy(
+            latitude = locations.map { it.latitude }.average(),
+            longitude = locations.map { it.longitude }.average()
+        )
+
+    private val clusterDistancePx: Float
+        get() = 88f * resources.displayMetrics.density
 
     protected fun applyLocationToManagedApps(packageName: String? = null): Boolean {
         if (!PrefManager.isSeparateControlEnabled) return false

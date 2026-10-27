@@ -22,6 +22,32 @@
         <item>4</item>
     </string-array>
 
+    <string-array name="marker_color_names">
+        <item>@string/marker_color_red</item>
+        <item>@string/marker_color_orange</item>
+        <item>@string/marker_color_yellow</item>
+        <item>@string/marker_color_lime</item>
+        <item>@string/marker_color_green</item>
+        <item>@string/marker_color_cyan</item>
+        <item>@string/marker_color_azure</item>
+        <item>@string/marker_color_blue</item>
+        <item>@string/marker_color_violet</item>
+        <item>@string/marker_color_magenta</item>
+    </string-array>
+
+    <string-array name="marker_color_hues" translatable="false">
+        <item>0</item>
+        <item>30</item>
+        <item>60</item>
+        <item>90</item>
+        <item>120</item>
+        <item>180</item>
+        <item>210</item>
+        <item>240</item>
+        <item>270</item>
+        <item>300</item>
+    </string-array>
+
     <!-- DarkTheme Preference -->
 
     <string-array name="theme_texts" translatable="false">

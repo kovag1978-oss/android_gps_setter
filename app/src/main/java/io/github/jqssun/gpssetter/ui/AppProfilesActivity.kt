@@ -9,6 +9,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.EditTextPreference
+import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
@@ -103,6 +104,27 @@ class AppProfilesActivity : AppCompatActivity() {
                     }
                 }
                 category.addPreference(commandPreference)
+
+                val colorPreference = ListPreference(requireContext()).apply {
+                    key = "app_marker_color_$packageName"
+                    isPersistent = false
+                    title = getString(R.string.app_marker_color)
+                    entries = resources.getStringArray(R.array.marker_color_names)
+                    entryValues = resources.getStringArray(R.array.marker_color_hues)
+                    value = profile.markerColorHue.toInt().toString()
+                    summary = entry ?: entries?.getOrNull(0)
+                    setOnPreferenceChangeListener { preference, newValue ->
+                        val hue = newValue.toString().toFloatOrNull()
+                            ?: return@setOnPreferenceChangeListener false
+                        PrefManager.saveAppLocationProfile(
+                            profileFor(packageName, appName).copy(markerColorHue = hue)
+                        )
+                        (preference as ListPreference).value = newValue.toString()
+                        preference.summary = preference.entry
+                        true
+                    }
+                }
+                category.addPreference(colorPreference)
 
                 val enabledPreference = SwitchPreferenceCompat(requireContext()).apply {
                     key = "app_profile_enabled_$packageName"

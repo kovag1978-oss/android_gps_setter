@@ -74,24 +74,16 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Add per-app location profiles with unique voice commands and independent coordinates.
-            - Apply a selected location to one managed app or all enabled apps; stop one active profile or all profiles from the main screen.
-            - Show a separate persistent notification for every active managed app.
-            - Improve Quick Settings voice control: a favorite spoken first applies to all enabled apps; an app command selects a target for the next recognition step.
-            - List available app commands and saved favorites in the speech-recognition prompt.
-            - Add Google Play services and Google Services Framework to the managed-app picker when installed.
-            - Refresh Xposed preferences so updated coordinates take effect while spoofing is active.
-            - Remove outdated joystick and Xposed-scope entries from Settings; target apps still need to be enabled manually in the Xposed manager.
+            - Show active spoofed locations on the map with colored app markers; nearby markers cluster into visible color dots and expand into a spider layout when tapped.
+            - Configure each managed app's voice command and map marker color in its profile.
+            - Keep active location notifications ongoing and run a foreground service while system or app-specific spoofing is active.
+            - Make “выключить” the stop command at both voice-recognition steps, and clarify the two-step prompts with a pause before step two.
 
             ## Изменения
-            - Добавлены отдельные профили геолокации приложений, уникальные голосовые команды и независимые координаты.
-            - На главном экране можно применить место к одному приложению или всем включённым; остановить один активный профиль или все профили.
-            - Для каждого активного управляемого приложения показывается отдельное постоянное уведомление.
-            - Улучшено голосовое управление через быстрые настройки: избранное, названное первым, применяется ко всем включённым приложениям; команда приложения выбирает цель для следующего распознавания.
-            - Подсказка распознавания перечисляет команды приложений и сохранённые избранные места.
-            - В список управляемых приложений добавлены Сервисы Google Play и Сервисы Google, если они установлены.
-            - Xposed-настройки перечитываются, чтобы новые координаты применялись без остановки подмены.
-            - Удалены устаревшие пункты настроек джойстика и области действия Xposed; целевые приложения по-прежнему нужно вручную включать в Xposed-менеджере.
+            - Активные подменённые геопозиции отображаются на карте цветными маркерами приложений; близкие точки объединяются в кластеры с видимыми цветными точками и раскрываются «паучком» по нажатию.
+            - Для каждого управляемого приложения в профиле настраиваются голосовая команда и цвет маркера.
+            - Уведомления активной подмены нельзя смахнуть; foreground service работает, пока активна системная или приложенческая подмена.
+            - Команда остановки «выключить» работает на обоих шагах распознавания; шаги подписаны, перед вторым шагом добавлена пауза.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
@@ -106,24 +98,16 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Add per-app location profiles with unique voice commands and independent coordinates.
-            - Apply a selected location to one managed app or all enabled apps; stop one active profile or all profiles from the main screen.
-            - Show a separate persistent notification for every active managed app.
-            - Improve Quick Settings voice control: a favorite spoken first applies to all enabled apps; an app command selects a target for the next recognition step.
-            - List available app commands and saved favorites in the speech-recognition prompt.
-            - Add Google Play services and Google Services Framework to the managed-app picker when installed.
-            - Refresh Xposed preferences so updated coordinates take effect while spoofing is active.
-            - Remove outdated joystick and Xposed-scope entries from Settings; target apps still need to be enabled manually in the Xposed manager.
+            - Show active spoofed locations on the map with colored app markers; nearby markers cluster into visible color dots and expand into a spider layout when tapped.
+            - Configure each managed app's voice command and map marker color in its profile.
+            - Keep active location notifications ongoing and run a foreground service while system or app-specific spoofing is active.
+            - Make “выключить” the stop command at both voice-recognition steps, and clarify the two-step prompts with a pause before step two.
 
             ## Изменения
-            - Добавлены отдельные профили геолокации приложений, уникальные голосовые команды и независимые координаты.
-            - На главном экране можно применить место к одному приложению или всем включённым; остановить один активный профиль или все профили.
-            - Для каждого активного управляемого приложения показывается отдельное постоянное уведомление.
-            - Улучшено голосовое управление через быстрые настройки: избранное, названное первым, применяется ко всем включённым приложениям; команда приложения выбирает цель для следующего распознавания.
-            - Подсказка распознавания перечисляет команды приложений и сохранённые избранные места.
-            - В список управляемых приложений добавлены Сервисы Google Play и Сервисы Google, если они установлены.
-            - Xposed-настройки перечитываются, чтобы новые координаты применялись без остановки подмены.
-            - Удалены устаревшие пункты настроек джойстика и области действия Xposed; целевые приложения по-прежнему нужно вручную включать в Xposed-менеджере.
+            - Активные подменённые геопозиции отображаются на карте цветными маркерами приложений; близкие точки объединяются в кластеры с видимыми цветными точками и раскрываются «паучком» по нажатию.
+            - Для каждого управляемого приложения в профиле настраиваются голосовая команда и цвет маркера.
+            - Уведомления активной подмены нельзя смахнуть; foreground service работает, пока активна системная или приложенческая подмена.
+            - Команда остановки «выключить» работает на обоих шагах распознавания; шаги подписаны, перед вторым шагом добавлена пауза.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk

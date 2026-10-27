@@ -10,7 +10,8 @@ data class AppLocationProfile(
     val enabled: Boolean = false,
     val started: Boolean = false,
     val latitude: Double = 0.0,
-    val longitude: Double = 0.0
+    val longitude: Double = 0.0,
+    val markerColorHue: Float = 210f
 )
 
 object AppLocationProfileCodec {
@@ -27,7 +28,8 @@ object AppLocationProfileCodec {
                 enabled = profile.optBoolean("enabled"),
                 started = profile.optBoolean("started"),
                 latitude = profile.optDouble("latitude"),
-                longitude = profile.optDouble("longitude")
+                longitude = profile.optDouble("longitude"),
+                markerColorHue = profile.optDouble("markerColorHue", 210.0).toFloat()
             )
         }
     }
@@ -44,6 +46,7 @@ object AppLocationProfileCodec {
                         .put("started", profile.started)
                         .put("latitude", profile.latitude)
                         .put("longitude", profile.longitude)
+                        .put("markerColorHue", profile.markerColorHue)
                 )
             }
         }.toString()

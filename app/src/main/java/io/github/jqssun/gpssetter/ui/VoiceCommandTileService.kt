@@ -104,7 +104,16 @@ class VoiceCommandTileService : TileService() {
             val favorites = favoriteNames(context)
                 .joinToString()
                 .ifEmpty { context.getString(R.string.voice_no_saved_favorites) }
-            return context.getString(R.string.voice_location_prompt, favorites)
+            val target = PrefManager.pendingVoiceTarget
+            val targetName = if (target == SYSTEM_TARGET) {
+                context.getString(R.string.voice_system_target)
+            } else {
+                PrefManager.appLocationProfiles
+                    .firstOrNull { it.packageName == target }
+                    ?.appName
+                    ?: context.getString(R.string.voice_system_target)
+            }
+            return context.getString(R.string.voice_location_prompt, targetName, favorites)
         }
 
         private fun favoriteNames(context: android.content.Context): List<String> =
@@ -126,5 +135,7 @@ class VoiceCommandTileService : TileService() {
                 ComponentName(context, VoiceCommandTileService::class.java)
             )
         }
+
+        private const val SYSTEM_TARGET = "@system"
     }
 }
