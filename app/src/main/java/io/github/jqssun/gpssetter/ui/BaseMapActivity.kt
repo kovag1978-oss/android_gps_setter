@@ -17,6 +17,7 @@ import android.os.Build
 import android.os.Looper
 import android.provider.Settings
 import android.view.View
+import android.widget.RelativeLayout
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
@@ -60,6 +61,7 @@ import kotlin.properties.Delegates
 @AndroidEntryPoint
 abstract class BaseMapActivity: AppCompatActivity() {
 
+    private val SYSTEM_LOCATION_TARGET = "@system"
     protected var lat by Delegates.notNull<Double>()
     protected var lon by Delegates.notNull<Double>()
     protected var selectedFavoriteName: String? = null
@@ -261,9 +263,155 @@ abstract class BaseMapActivity: AppCompatActivity() {
         super.onResume()
         refreshMapType()
         viewModel.updateXposedState()
-        binding.startButton.visibility = if (PrefManager.isStarted) View.GONE else View.VISIBLE
-        binding.stopButton.visibility = if (PrefManager.isStarted) View.VISIBLE else View.GONE
+        updateLocationButtonVisibility()
         VoiceCommandTileService.requestStateUpdate(this)
+    }
+
+    protected fun applyLocationToManagedApps(packageName: String? = null): Boolean {
+        if (!PrefManager.isSeparateControlEnabled) return false
+
+        val profiles = PrefManager.appLocationProfiles.filter { it.enabled }
+        val targets = if (packageName == null) {
+            profiles
+        } else {
+            profiles.filter { it.packageName == packageName }
+        }
+        if (targets.isEmpty()) {
+            showToast(getString(R.string.no_managed_apps_enabled))
+            return true
+        }
+
+        PrefManager.setAppLocations(targets.map { it.packageName }.toSet(), lat, lon)
+        val locationName = selectedFavoriteName
+            ?: getString(R.string.location_coordinates, lat, lon)
+        if (!PrefManager.isStarted) {
+            cancelNotification()
+        }
+        showManagedStartNotifications(
+            targets.map { profile ->
+                profile.packageName to
+                    getString(R.string.location_applied_to_app, profile.appName, locationName)
+            }
+        )
+        val toastText = if (packageName == null) {
+            getString(R.string.location_applied_to_apps, targets.size, locationName)
+        } else {
+            getString(R.string.location_applied_to_app, targets.single().appName, locationName)
+        }
+        updateLocationButtonVisibility()
+        VoiceCommandTileService.requestStateUpdate(this)
+        showToast(toastText)
+        return true
+    }
+
+    protected fun showManagedAppChoice(): Boolean {
+        if (!PrefManager.isSeparateControlEnabled) return false
+
+        val profiles = PrefManager.appLocationProfiles
+            .filter { it.enabled }
+            .sortedBy { it.appName.lowercase(java.util.Locale.getDefault()) }
+        if (profiles.isEmpty()) {
+            showToast(getString(R.string.no_managed_apps_enabled))
+            return true
+        }
+
+        val choices = listOf(getString(R.string.all_managed_apps)) +
+            profiles.map { it.appName }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.choose_managed_app)
+            .setItems(choices.toTypedArray()) { _, index ->
+                if (index == 0) {
+                    applyLocationToManagedApps()
+                } else {
+                    applyLocationToManagedApps(profiles[index - 1].packageName)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+        return true
+    }
+
+    protected fun showRunningManagedLocationChoice(onStopAll: (() -> Unit)? = null): Boolean {
+        if (!PrefManager.isSeparateControlEnabled) return false
+
+        val activeProfiles = PrefManager.appLocationProfiles
+            .filter { it.enabled && it.started }
+            .sortedBy { it.appName.lowercase(java.util.Locale.getDefault()) }
+        val targets = activeProfiles.map { it.packageName to it.appName }.toMutableList()
+        if (PrefManager.isStarted) {
+            targets += SYSTEM_LOCATION_TARGET to getString(R.string.voice_system_target)
+        }
+        if (targets.isEmpty()) {
+            showToast(getString(R.string.no_managed_locations_running))
+            return true
+        }
+
+        val choices = listOf(getString(R.string.all_managed_apps)) +
+            targets.map { it.second }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.choose_managed_location_to_stop)
+            .setItems(choices.toTypedArray()) { _, index ->
+                if (index == 0) {
+                    if (stopManagedLocations()) onStopAll?.invoke()
+                } else {
+                    stopManagedLocation(targets[index - 1].first)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+        return true
+    }
+
+    protected fun stopManagedLocations(): Boolean {
+        if (!PrefManager.isSeparateControlEnabled) return false
+
+        PrefManager.appLocationProfiles.forEach {
+            cancelManagedLocationNotification(it.packageName)
+        }
+        PrefManager.stopAllAppLocations()
+        if (PrefManager.isStarted) {
+            viewModel.update(false, PrefManager.getLat, PrefManager.getLng)
+        }
+        cancelNotification()
+        updateLocationButtonVisibility()
+        VoiceCommandTileService.requestStateUpdate(this)
+        showToast(getString(R.string.managed_locations_stopped))
+        return true
+    }
+
+    private fun stopManagedLocation(packageName: String) {
+        if (packageName == SYSTEM_LOCATION_TARGET) {
+            viewModel.update(false, PrefManager.getLat, PrefManager.getLng)
+            cancelNotification()
+        } else {
+            PrefManager.setAppLocation(packageName, start = false)
+            cancelManagedLocationNotification(packageName)
+        }
+        updateLocationButtonVisibility()
+        VoiceCommandTileService.requestStateUpdate(this)
+        showToast(getString(R.string.managed_location_stopped))
+    }
+
+    private fun updateLocationButtonVisibility() {
+        val separateControl = PrefManager.isSeparateControlEnabled
+        if (separateControl) {
+            binding.startButton.visibility = View.VISIBLE
+            binding.stopButton.visibility =
+                if (PrefManager.isStarted || PrefManager.hasActiveAppProfile) View.VISIBLE else View.GONE
+            (binding.stopButton.layoutParams as? RelativeLayout.LayoutParams)?.let { params ->
+                params.removeRule(RelativeLayout.ABOVE)
+                params.addRule(RelativeLayout.ABOVE, binding.startButton.id)
+                binding.stopButton.layoutParams = params
+            }
+        } else {
+            binding.startButton.visibility = if (PrefManager.isStarted) View.GONE else View.VISIBLE
+            binding.stopButton.visibility = if (PrefManager.isStarted) View.VISIBLE else View.GONE
+            (binding.stopButton.layoutParams as? RelativeLayout.LayoutParams)?.let { params ->
+                params.removeRule(RelativeLayout.ABOVE)
+                params.addRule(RelativeLayout.ABOVE, binding.addfavorite.id)
+                binding.stopButton.layoutParams = params
+            }
+        }
     }
 
     protected fun aboutDialog(){
@@ -458,15 +606,27 @@ abstract class BaseMapActivity: AppCompatActivity() {
     }
 
     protected fun showStartNotification(address: String){
-        if (!NotificationManagerCompat.from(this).areNotificationsEnabled() ||
-            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-        ) {
+        if (!canShowLocationNotifications()) {
             showToast(getString(R.string.notifications_permission_required))
             return
         }
         notificationsChannel.showLocationNotification(this, address)
     }
+
+    private fun showManagedStartNotifications(notifications: List<Pair<String, String>>) {
+        if (!canShowLocationNotifications()) {
+            showToast(getString(R.string.notifications_permission_required))
+            return
+        }
+        notifications.forEach { (packageName, address) ->
+            notificationsChannel.showLocationNotification(this, packageName, address)
+        }
+    }
+
+    private fun canShowLocationNotifications(): Boolean =
+        NotificationManagerCompat.from(this).areNotificationsEnabled() &&
+            (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
 
     protected fun clearSelectedFavorite() {
         selectedFavoriteName = null
@@ -474,6 +634,10 @@ abstract class BaseMapActivity: AppCompatActivity() {
 
     protected fun cancelNotification(){
         notificationsChannel.cancelLocationNotification(this)
+    }
+
+    private fun cancelManagedLocationNotification(packageName: String) {
+        notificationsChannel.cancelManagedLocationNotification(this, packageName)
     }
 
     // Get current location

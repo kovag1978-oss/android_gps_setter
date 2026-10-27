@@ -1,14 +1,11 @@
 package io.github.jqssun.gpssetter.ui
 
 
-import android.app.ActivityManager
 import android.content.ActivityNotFoundException
-import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import android.text.Editable
 import android.text.InputType
 import android.text.TextWatcher
@@ -33,7 +30,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.github.jqssun.gpssetter.R
 import io.github.jqssun.gpssetter.databinding.ActivitySettingsBinding
 import io.github.jqssun.gpssetter.update.UpdateChecker
-import io.github.jqssun.gpssetter.utils.JoystickService
 import io.github.jqssun.gpssetter.utils.PrefManager
 import io.github.jqssun.gpssetter.utils.ext.showToast
 import kotlinx.coroutines.launch
@@ -51,7 +47,7 @@ class ActivitySettings : AppCompatActivity() {
             return when (key) {
                 "system_hooked" -> PrefManager.isSystemHooked
                 "random_position" -> PrefManager.isRandomPosition
-                "joystick_enabled" -> PrefManager.isJoystickEnabled
+                "separate_control" -> PrefManager.isSeparateControlEnabled
                 else -> throw IllegalArgumentException("Invalid key $key")
             }
         }
@@ -60,7 +56,7 @@ class ActivitySettings : AppCompatActivity() {
             return when (key) {
                 "system_hooked" -> PrefManager.isSystemHooked = value
                 "random_position" -> PrefManager.isRandomPosition = value
-                "joystick_enabled" -> PrefManager.isJoystickEnabled = value
+                "separate_control" -> PrefManager.isSeparateControlEnabled = value
                 else -> throw IllegalArgumentException("Invalid key $key")
             }
         }
@@ -164,6 +160,11 @@ class ActivitySettings : AppCompatActivity() {
                 true
             }
 
+            findPreference<Preference>("app_profiles")?.setOnPreferenceClickListener {
+                startActivity(Intent(requireContext(), AppProfilesActivity::class.java))
+                true
+            }
+
             findPreference<EditTextPreference>("accuracy_level")?.let {
                 it.summary = "${PrefManager.accuracy} m"
                 it.setOnBindEditTextListener { editText ->
@@ -197,22 +198,6 @@ class ActivitySettings : AppCompatActivity() {
                 true
             }
 
-            findPreference<Preference>("joystick_enabled")?.let {
-                it.setOnPreferenceClickListener {
-                    if (askOverlayPermission()){
-                        if (isJoystickRunning()) {
-                            requireContext().stopService(Intent(context,JoystickService::class.java))
-                            it.summary = getString(R.string.joystick_disabled)
-                        } else if (PrefManager.isStarted) {
-                            requireContext().startService(Intent(context,JoystickService::class.java))
-                            it.summary = getString(R.string.joystick_enabled)
-                        } else {
-                            requireContext().showToast(requireContext().getString(R.string.location_not_select))
-                        }
-                    }
-                    true
-                }
-            }
         }
 
         private fun showUpdateCheckMessage(title: Int, message: Int, reason: String? = null) {
@@ -243,28 +228,6 @@ class ActivitySettings : AppCompatActivity() {
                 }
                 .show()
         }
-
-        private fun isJoystickRunning(): Boolean {
-            var isRunning = false
-            val manager = requireContext().getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager? ?: return false
-            for (service in manager.getRunningServices(Int.MAX_VALUE)) {
-                if ("io.github.jqssun.gpssetter.utils.JoystickService" == service.service.className) {
-                    isRunning = true
-                }
-            }
-            return isRunning
-        }
-
-
-        private fun askOverlayPermission() : Boolean {
-            if (Settings.canDrawOverlays(context)){
-                return true
-            }
-            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context?.applicationContext?.packageName}" ))
-            requireContext().startActivity(intent)
-            return false
-        }
-
 
         private fun getCommaReplacerTextWatcher(editText: EditText): TextWatcher {
             return object : TextWatcher {

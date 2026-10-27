@@ -31,13 +31,23 @@ class NotificationsChannel{
     }
 
     fun showLocationNotification(context: Context, address: String) {
-        showNotification(context) {
+        showLocationNotification(context, null, address)
+    }
+
+    fun showLocationNotification(context: Context, packageName: String?, address: String) {
+        val notification = createNotification(context) {
             it.setSmallIcon(R.drawable.ic_stop)
             it.setContentTitle(context.getString(R.string.active_location))
             it.setContentText(address)
             it.setOngoing(true)
             it.setCategory(Notification.CATEGORY_SERVICE)
             it.priority = NotificationCompat.PRIORITY_MAX
+        }
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (packageName == null) {
+            notificationManager.notify(ACTIVE_LOCATION_NOTIFICATION_ID, notification)
+        } else {
+            notificationManager.notify(managedLocationNotificationTag(packageName), ACTIVE_LOCATION_NOTIFICATION_ID, notification)
         }
     }
 
@@ -46,7 +56,13 @@ class NotificationsChannel{
         notificationManager.cancel(ACTIVE_LOCATION_NOTIFICATION_ID)
     }
 
+    fun cancelManagedLocationNotification(context: Context, packageName: String) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(managedLocationNotificationTag(packageName), ACTIVE_LOCATION_NOTIFICATION_ID)
+    }
+
     companion object {
         private const val ACTIVE_LOCATION_NOTIFICATION_ID = 123
+        private fun managedLocationNotificationTag(packageName: String) = "managed_location:$packageName"
     }
 }

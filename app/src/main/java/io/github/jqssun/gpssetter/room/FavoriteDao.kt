@@ -25,6 +25,9 @@ interface FavoriteDao {
         @Query("SELECT * FROM favorite ORDER BY id DESC")
         suspend fun getAllFavoritesSnapshot(): List<Favorite>
 
+        @Query("SELECT * FROM favorite ORDER BY id DESC")
+        fun getFavoritesForVoicePrompt(): List<Favorite>
+
         @Insert(onConflict = OnConflictStrategy.IGNORE)
         suspend fun insertFavorites(favorites: List<Favorite>): List<Long>
 

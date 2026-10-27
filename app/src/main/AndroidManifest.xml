@@ -2,6 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <queries>
+        <package android:name="com.google.android.gms" />
+        <package android:name="com.google.android.gsf" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -29,6 +38,11 @@
             android:launchMode="singleTop"
             android:screenOrientation="portrait">
         </activity>
+        <activity
+            android:name=".ui.AppProfilesActivity"
+            android:exported="false"
+            android:label="@string/app_profiles"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".ui.MapActivity"
             android:exported="true"

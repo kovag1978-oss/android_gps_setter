@@ -57,7 +57,7 @@ jobs:
           echo ${{ secrets.STORE }} | base64 -d > upload.jks
           echo ${{ secrets.LOCAL }} | base64 -d > local.properties
           chmod +x ./gradlew;
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew :app:assembleFossRelease :app:assembleFullRelease --stacktrace
           rm upload.jks local.properties
 
       # - name: Upload
@@ -74,18 +74,24 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Add a Quick Settings tile for voice selection of saved favorite locations.
-            - Open Android's speech recognizer directly without launching the GPS Setter screen.
-            - Improve voice recognition: accept favorite names within longer phrases, recognize stop commands, and leave spoofing unchanged when nothing matches.
-            - Change the application ID to io.github.kovag1978_oss.gpssetter to match the maintainer namespace. Existing installs with the old ID require uninstalling first.
-            - Add Russian and English interface language selection, favorites import/export, and manual update checks.
+            - Add per-app location profiles with unique voice commands and independent coordinates.
+            - Apply a selected location to one managed app or all enabled apps; stop one active profile or all profiles from the main screen.
+            - Show a separate persistent notification for every active managed app.
+            - Improve Quick Settings voice control: a favorite spoken first applies to all enabled apps; an app command selects a target for the next recognition step.
+            - List available app commands and saved favorites in the speech-recognition prompt.
+            - Add Google Play services and Google Services Framework to the managed-app picker when installed.
+            - Refresh Xposed preferences so updated coordinates take effect while spoofing is active.
+            - Remove outdated joystick and Xposed-scope entries from Settings; target apps still need to be enabled manually in the Xposed manager.
 
             ## Изменения
-            - Добавлена плитка быстрых настроек для голосового выбора сохранённых мест.
-            - Открывается системное распознавание речи; экран GPS Setter не запускается.
-            - Улучшено распознавание голосовых команд: название избранного распознаётся в составе фразы, команда «стоп» выключает подмену, при отсутствии совпадений состояние не меняется.
-            - ID приложения изменён на io.github.kovag1978_oss.gpssetter в соответствии с namespace владельца. Для обновления со старым ID сначала удалите прежнюю версию; данные не переносятся.
-            - Добавлены русский и английский языки интерфейса, импорт/экспорт избранного и ручная проверка обновлений.
+            - Добавлены отдельные профили геолокации приложений, уникальные голосовые команды и независимые координаты.
+            - На главном экране можно применить место к одному приложению или всем включённым; остановить один активный профиль или все профили.
+            - Для каждого активного управляемого приложения показывается отдельное постоянное уведомление.
+            - Улучшено голосовое управление через быстрые настройки: избранное, названное первым, применяется ко всем включённым приложениям; команда приложения выбирает цель для следующего распознавания.
+            - Подсказка распознавания перечисляет команды приложений и сохранённые избранные места.
+            - В список управляемых приложений добавлены Сервисы Google Play и Сервисы Google, если они установлены.
+            - Xposed-настройки перечитываются, чтобы новые координаты применялись без остановки подмены.
+            - Удалены устаревшие пункты настроек джойстика и области действия Xposed; целевые приложения по-прежнему нужно вручную включать в Xposed-менеджере.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
@@ -100,18 +106,24 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Add a Quick Settings tile for voice selection of saved favorite locations.
-            - Open Android's speech recognizer directly without launching the GPS Setter screen.
-            - Improve voice recognition: accept favorite names within longer phrases, recognize stop commands, and leave spoofing unchanged when nothing matches.
-            - Change the application ID to io.github.kovag1978_oss.gpssetter to match the maintainer namespace. Existing installs with the old ID require uninstalling first.
-            - Add Russian and English interface language selection, favorites import/export, and manual update checks.
+            - Add per-app location profiles with unique voice commands and independent coordinates.
+            - Apply a selected location to one managed app or all enabled apps; stop one active profile or all profiles from the main screen.
+            - Show a separate persistent notification for every active managed app.
+            - Improve Quick Settings voice control: a favorite spoken first applies to all enabled apps; an app command selects a target for the next recognition step.
+            - List available app commands and saved favorites in the speech-recognition prompt.
+            - Add Google Play services and Google Services Framework to the managed-app picker when installed.
+            - Refresh Xposed preferences so updated coordinates take effect while spoofing is active.
+            - Remove outdated joystick and Xposed-scope entries from Settings; target apps still need to be enabled manually in the Xposed manager.
 
             ## Изменения
-            - Добавлена плитка быстрых настроек для голосового выбора сохранённых мест.
-            - Открывается системное распознавание речи; экран GPS Setter не запускается.
-            - Улучшено распознавание голосовых команд: название избранного распознаётся в составе фразы, команда «стоп» выключает подмену, при отсутствии совпадений состояние не меняется.
-            - ID приложения изменён на io.github.kovag1978_oss.gpssetter в соответствии с namespace владельца. Для обновления со старым ID сначала удалите прежнюю версию; данные не переносятся.
-            - Добавлены русский и английский языки интерфейса, импорт/экспорт избранного и ручная проверка обновлений.
+            - Добавлены отдельные профили геолокации приложений, уникальные голосовые команды и независимые координаты.
+            - На главном экране можно применить место к одному приложению или всем включённым; остановить один активный профиль или все профили.
+            - Для каждого активного управляемого приложения показывается отдельное постоянное уведомление.
+            - Улучшено голосовое управление через быстрые настройки: избранное, названное первым, применяется ко всем включённым приложениям; команда приложения выбирает цель для следующего распознавания.
+            - Подсказка распознавания перечисляет команды приложений и сохранённые избранные места.
+            - В список управляемых приложений добавлены Сервисы Google Play и Сервисы Google, если они установлены.
+            - Xposed-настройки перечитываются, чтобы новые координаты применялись без остановки подмены.
+            - Удалены устаревшие пункты настроек джойстика и области действия Xposed; целевые приложения по-прежнему нужно вручную включать в Xposed-менеджере.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk

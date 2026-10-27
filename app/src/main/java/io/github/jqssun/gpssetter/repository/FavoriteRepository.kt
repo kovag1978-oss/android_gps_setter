@@ -15,6 +15,9 @@ class FavoriteRepository @Inject constructor(private val favoriteDao: FavoriteDa
         suspend fun getAllFavoritesSnapshot(): List<Favorite> =
                 favoriteDao.getAllFavoritesSnapshot()
 
+        fun getFavoritesForVoicePrompt(): List<Favorite> =
+                favoriteDao.getFavoritesForVoicePrompt()
+
         suspend fun importFavorites(favorites: List<Favorite>): Pair<Int, Int> {
                 val favoritesById = favoriteDao.getAllFavoritesSnapshot()
                         .associateBy { it.id ?: error("Favorite is missing its database ID") }

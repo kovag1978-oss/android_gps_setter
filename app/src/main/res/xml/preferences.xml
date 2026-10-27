@@ -37,21 +37,21 @@
             android:icon="@drawable/ic_update"
             android:key="check_update" />
 
-        <Preference
-            android:title="@string/enable_joystick"
-            android:summary="@string/enable_joystick_summary"
-            android:icon="@drawable/ic_joystick"
-            android:key="joystick_enabled"
-            android:defaultValue="false" />
-
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/xposed">
 
+        <SwitchPreferenceCompat
+            android:title="@string/separate_control"
+            android:summary="@string/separate_control_summary"
+            android:key="separate_control"
+            android:defaultValue="false"
+            android:widgetLayout="@layout/preference_switch_widget" />
+
         <Preference
-            android:title="@string/xposed_scope_title"
-            android:summary="@string/xposed_scope_summary"
-            android:selectable="false" />
+            android:title="@string/app_profiles"
+            android:summary="@string/app_profiles_summary"
+            android:key="app_profiles" />
 
         <SwitchPreferenceCompat
             android:title="@string/advanced_hook"

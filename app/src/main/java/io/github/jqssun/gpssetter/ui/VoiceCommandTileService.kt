@@ -37,10 +37,20 @@ class VoiceCommandTileService : TileService() {
 
     private fun updateTileState() {
         qsTile?.let { tile ->
-            tile.state = if (PrefManager.isStarted) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+            tile.state = if (PrefManager.isStarted || PrefManager.hasActiveAppProfile) {
+                Tile.STATE_ACTIVE
+            } else {
+                Tile.STATE_INACTIVE
+            }
             tile.label = getString(R.string.voice_tile_label)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                tile.subtitle = getString(R.string.voice_tile_subtitle)
+                tile.subtitle = getString(
+                    if (PrefManager.isSeparateControlEnabled) {
+                        R.string.voice_tile_subtitle_separate
+                    } else {
+                        R.string.voice_tile_subtitle
+                    }
+                )
             }
             tile.updateTile()
         }
@@ -63,13 +73,48 @@ class VoiceCommandTileService : TileService() {
                     RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                     RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
                 )
-                putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_prompt))
+                val prompt = when {
+                    !PrefManager.isSeparateControlEnabled -> context.getString(R.string.voice_prompt)
+                    PrefManager.pendingVoiceTarget == null -> targetRecognitionPrompt(context)
+                    else -> favoriteRecognitionPrompt(context)
+                }
+                putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, voiceLanguageTag())
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
                 putExtra(RecognizerIntent.EXTRA_RESULTS_PENDINGINTENT, resultPendingIntent)
                 putExtra(RecognizerIntent.EXTRA_RESULTS_PENDINGINTENT_BUNDLE, Bundle())
             }
         }
+
+        private fun targetRecognitionPrompt(context: android.content.Context): String {
+            val appCommands = PrefManager.appLocationProfiles
+                .filter { it.enabled }
+                .map { it.voiceCommand.trim() }
+                .filter(String::isNotEmpty)
+                .distinct()
+                .joinToString()
+                .ifEmpty { context.getString(R.string.voice_no_app_commands) }
+            val favorites = favoriteNames(context)
+                .joinToString()
+                .ifEmpty { context.getString(R.string.voice_no_saved_favorites) }
+            return context.getString(R.string.voice_target_prompt, appCommands, favorites)
+        }
+
+        private fun favoriteRecognitionPrompt(context: android.content.Context): String {
+            val favorites = favoriteNames(context)
+                .joinToString()
+                .ifEmpty { context.getString(R.string.voice_no_saved_favorites) }
+            return context.getString(R.string.voice_location_prompt, favorites)
+        }
+
+        private fun favoriteNames(context: android.content.Context): List<String> =
+            dagger.hilt.android.EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                VoiceCommandResultReceiver.VoiceCommandEntryPoint::class.java
+            ).favoriteRepository()
+                .getFavoritesForVoicePrompt()
+                .mapNotNull { it.address?.trim()?.takeIf(String::isNotEmpty) }
+                .distinct()
 
         private fun voiceLanguageTag(): String =
             androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags()

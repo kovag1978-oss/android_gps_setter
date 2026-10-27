@@ -191,6 +191,10 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
         }
 
         binding.startButton.setOnClickListener {
+            if (showManagedAppChoice()) {
+                mLatLng?.let(::updateMarker)
+                return@setOnClickListener
+            }
             viewModel.update(true, lat, lon)
             mLatLng.let {
                 updateMarker(it!!)
@@ -215,6 +219,9 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
             showToast(getString(R.string.location_set))
         }
         binding.stopButton.setOnClickListener {
+            if (showRunningManagedLocationChoice { removeMarker() }) {
+                return@setOnClickListener
+            }
             mLatLng.let {
                 viewModel.update(false, it!!.latitude, it.longitude)
             }

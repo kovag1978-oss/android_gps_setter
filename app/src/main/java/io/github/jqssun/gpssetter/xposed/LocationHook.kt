@@ -30,21 +30,23 @@ object LocationHook {
     private const val earth = 6378137.0
     private val settings = Xshare()
     private var mLastUpdated: Long = 0
+    private var appSpoofEnabled = false
+    private var systemSpoofEnabled = false
     private val ignorePkg = arrayListOf("com.android.location.fused", BuildConfig.APPLICATION_ID)
 
     private val context by lazy { AndroidAppHelper.currentApplication() as Context }
 
-    private fun updateLocation() {
+    private fun updateLocation(latitude: Double = settings.getLat, longitude: Double = settings.getLng) {
         try {
             mLastUpdated = System.currentTimeMillis()
             val x = (rand.nextInt(50) - 15).toDouble()
             val y = (rand.nextInt(50) - 15).toDouble()
             val dlat = x / earth
-            val dlng = y / (earth * cos(pi * settings.getLat / 180.0))
+            val dlng = y / (earth * cos(pi * latitude / 180.0))
             newlat =
-                if (settings.isRandomPosition) settings.getLat + (dlat * 180.0 / pi) else settings.getLat
+                if (settings.isRandomPosition) latitude + (dlat * 180.0 / pi) else latitude
             newlng =
-                if (settings.isRandomPosition) settings.getLng + (dlng * 180.0 / pi) else settings.getLng
+                if (settings.isRandomPosition) longitude + (dlng * 180.0 / pi) else longitude
             accuracy = settings.accuracy!!.toFloat()
 
         } catch (e: Exception) {
@@ -53,14 +55,44 @@ object LocationHook {
         }
     }
 
+    private fun updateAppLocationIfNeeded(packageName: String): Boolean {
+        if (ignorePkg.contains(packageName)) return false
+        if (System.currentTimeMillis() - mLastUpdated > 80) {
+            settings.reload()
+            val profile = settings.appLocationProfile(packageName)
+            appSpoofEnabled = profile != null || settings.isStarted
+            if (appSpoofEnabled) {
+                if (profile == null) {
+                    updateLocation()
+                } else {
+                    updateLocation(profile.latitude, profile.longitude)
+                }
+            } else {
+                mLastUpdated = System.currentTimeMillis()
+            }
+        }
+        return appSpoofEnabled
+    }
+
+    private fun updateSystemLocationIfNeeded(): Boolean {
+        if (System.currentTimeMillis() - mLastUpdated > 200) {
+            settings.reload()
+            systemSpoofEnabled = settings.isStarted && settings.isHookedSystem
+            if (systemSpoofEnabled) {
+                updateLocation()
+            } else {
+                mLastUpdated = System.currentTimeMillis()
+            }
+        }
+        return systemSpoofEnabled
+    }
+
     @SuppressLint("NewApi")
     fun initHooks(lpparam: XC_LoadPackage.LoadPackageParam) {
 
-        if (lpparam.packageName == "android") { XposedBridge.log("Hooking system server")
-        if (settings.isStarted && (settings.isHookedSystem && !ignorePkg.contains(lpparam.packageName))) {
-            if (System.currentTimeMillis() - mLastUpdated > 200) {
-                updateLocation()
-            }
+        if (lpparam.packageName == "android") {
+        settings.reload()
+        if (settings.isHookedSystem && !ignorePkg.contains(lpparam.packageName)) {
 
             if (Build.VERSION.SDK_INT < 34) {
 
@@ -74,7 +106,8 @@ object LocationHook {
                     LocationRequest::class.java, String::class.java,
                     object : XC_MethodHook() {
                         override fun beforeHookedMethod(param: MethodHookParam) {
-                            val location = Location(LocationManager.GPS_PROVIDER)
+                        if (!updateSystemLocationIfNeeded()) return
+                        val location = Location(LocationManager.GPS_PROVIDER)
                             location.time = System.currentTimeMillis() - 300
                             location.latitude = newlat
                             location.longitude = newlng
@@ -112,6 +145,7 @@ object LocationHook {
                     Location::class.java,
                     object : XC_MethodHook() {
                         override fun beforeHookedMethod(param: MethodHookParam) {
+                            if (!updateSystemLocationIfNeeded()) return
                             lateinit var location: Location
                             lateinit var originLocation: Location
                             if (param.args[0] == null) {
@@ -158,6 +192,7 @@ object LocationHook {
                             method,
                             object : XC_MethodHook() {
                                 override fun beforeHookedMethod(param: MethodHookParam) {
+                                    if (!updateSystemLocationIfNeeded()) return
                                     val location = Location(LocationManager.GPS_PROVIDER)
                                     location.time = System.currentTimeMillis() - 300
                                     location.latitude = newlat
@@ -193,6 +228,7 @@ object LocationHook {
                     Location::class.java,
                     object : XC_MethodHook() {
                         override fun beforeHookedMethod(param: MethodHookParam) {
+                            if (!updateSystemLocationIfNeeded()) return
                             lateinit var location: Location
                             lateinit var originLocation: Location
                             if (param.args[0] == null) {
@@ -234,7 +270,6 @@ object LocationHook {
                 "android.location.Location",
                 lpparam.classLoader
             )
-            val interval = 80 // 200
 
             for (method in LocationClass.declaredMethods) {
                 if (method.name == "getLatitude") {
@@ -242,10 +277,7 @@ object LocationHook {
                         method,
                         object : XC_MethodHook() {
                             override fun beforeHookedMethod(param: MethodHookParam) {
-                                if (System.currentTimeMillis() - mLastUpdated > interval) {
-                                    updateLocation()
-                                }
-                                if (settings.isStarted && !ignorePkg.contains(lpparam.packageName)) {
+                                if (updateAppLocationIfNeeded(lpparam.packageName)) {
                                     param.result = newlat
                                 }
                             }
@@ -256,10 +288,7 @@ object LocationHook {
                         method,
                         object : XC_MethodHook() {
                             override fun beforeHookedMethod(param: MethodHookParam) {
-                                if (System.currentTimeMillis() - mLastUpdated > interval) {
-                                    updateLocation()
-                                }
-                                if (settings.isStarted && !ignorePkg.contains(lpparam.packageName)) {
+                                if (updateAppLocationIfNeeded(lpparam.packageName)) {
                                     param.result = newlng
                                 }
                             }
@@ -270,10 +299,7 @@ object LocationHook {
                         method,
                         object : XC_MethodHook() {
                             override fun beforeHookedMethod(param: MethodHookParam) {
-                                if (System.currentTimeMillis() - mLastUpdated > interval) {
-                                    updateLocation()
-                                }
-                                if (settings.isStarted && !ignorePkg.contains(lpparam.packageName)) {
+                                if (updateAppLocationIfNeeded(lpparam.packageName)) {
                                     param.result = accuracy
                                 }
                             }
@@ -289,10 +315,7 @@ object LocationHook {
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
 
-                        if (System.currentTimeMillis() - mLastUpdated > interval) {
-                            updateLocation()
-                        }
-                        if (settings.isStarted && !ignorePkg.contains(lpparam.packageName)) {
+                        if (updateAppLocationIfNeeded(lpparam.packageName)) {
                             lateinit var location: Location
                             lateinit var originLocation: Location
                             if (param.args[0] == null) {
@@ -335,10 +358,7 @@ object LocationHook {
                 String::class.java,
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
-                        if (System.currentTimeMillis() - mLastUpdated > interval) {
-                            updateLocation()
-                        }
-                        if (settings.isStarted && !ignorePkg.contains(lpparam.packageName)) {
+                        if (updateAppLocationIfNeeded(lpparam.packageName)) {
                             val provider = param.args[0] as String
                             val location = Location(provider)
                             location.time = System.currentTimeMillis() - 300
