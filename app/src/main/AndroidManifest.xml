@@ -46,6 +46,10 @@
             android:label="@string/app_profiles"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".ui.VoiceCommandActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GPSSetter.VoiceCommand" />
+        <activity
             android:name=".ui.MapActivity"
             android:exported="true"
             android:screenOrientation="portrait">

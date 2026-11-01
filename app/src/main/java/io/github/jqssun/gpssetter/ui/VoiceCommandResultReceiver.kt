@@ -32,41 +32,54 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val phrases = intent
-                    .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                    .orEmpty()
-                    .map(VoiceCommandText::normalize)
-                    .filter(String::isNotEmpty)
-
-                if (phrases.isEmpty()) {
-                    showMessage(context, R.string.voice_no_matches)
-                    return@launch
-                }
-
-                if (PrefManager.isSeparateControlEnabled) {
-                    val target = PrefManager.pendingVoiceTarget
-                    if (target == null) {
-                        if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
-                            stopAllSpoofing(context)
-                        } else if (!applyFavoriteToAllManagedApps(context, phrases)) {
-                            selectTarget(context, phrases)
-                        }
-                    } else {
-                        processTargetCommand(context, target, phrases)
-                    }
-                } else {
-                    PrefManager.pendingVoiceTarget = null
-                    processGlobalCommand(context, phrases)
-                }
-            } catch (exception: CancellationException) {
-                throw exception
-            } catch (exception: Exception) {
-                Timber.e(exception, "Failed to process voice location command")
-                PrefManager.pendingVoiceTarget = null
-                showMessage(context, R.string.voice_command_failed)
+                processResults(
+                    context,
+                    intent
+                        .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                        .orEmpty()
+                ) { startNextRecognition(context) }
             } finally {
                 pendingResult.finish()
             }
+        }
+    }
+
+    private suspend fun processRecognizedPhrases(
+        context: Context,
+        recognizedPhrases: List<String>,
+        startNextRecognition: suspend () -> Unit
+    ) {
+        try {
+            val phrases = recognizedPhrases
+                .map(VoiceCommandText::normalize)
+                .filter(String::isNotEmpty)
+
+            if (phrases.isEmpty()) {
+                showMessage(context, R.string.voice_no_matches)
+                return
+            }
+
+            if (PrefManager.isSeparateControlEnabled) {
+                val target = PrefManager.pendingVoiceTarget
+                if (target == null) {
+                    if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
+                        stopAllSpoofing(context)
+                    } else if (!applyFavoriteToAllManagedApps(context, phrases)) {
+                        selectTarget(context, phrases, startNextRecognition)
+                    }
+                } else {
+                    processTargetCommand(context, target, phrases, startNextRecognition)
+                }
+            } else {
+                PrefManager.pendingVoiceTarget = null
+                processGlobalCommand(context, phrases, startNextRecognition)
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Timber.e(exception, "Failed to process voice location command")
+            PrefManager.pendingVoiceTarget = null
+            showMessage(context, R.string.voice_command_failed)
         }
     }
 
@@ -111,7 +124,11 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         return true
     }
 
-    private suspend fun selectTarget(context: Context, phrases: List<String>) {
+    private suspend fun selectTarget(
+        context: Context,
+        phrases: List<String>,
+        startNextRecognition: suspend () -> Unit
+    ) {
         val profiles = PrefManager.appLocationProfiles.filter {
             it.enabled && it.voiceCommand.isNotBlank()
         }
@@ -129,18 +146,19 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
                 context.getString(R.string.voice_stop_command)
             )
             delay(SECOND_STEP_DELAY_MILLIS)
-            startNextRecognition(context)
+            startNextRecognition()
             return
         }
 
         showMessage(context, R.string.voice_no_matches)
-        startNextRecognition(context)
+        startNextRecognition()
     }
 
     private suspend fun processTargetCommand(
         context: Context,
         target: String,
-        phrases: List<String>
+        phrases: List<String>,
+        startNextRecognition: suspend () -> Unit
     ) {
         if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
             if (target == SYSTEM_TARGET) {
@@ -205,10 +223,14 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         }
 
         showMessage(context, R.string.voice_no_matches)
-        startNextRecognition(context)
+        startNextRecognition()
     }
 
-    private suspend fun processGlobalCommand(context: Context, phrases: List<String>) {
+    private suspend fun processGlobalCommand(
+        context: Context,
+        phrases: List<String>,
+        startNextRecognition: suspend () -> Unit
+    ) {
         if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
             disableGlobalSpoofing(context)
             showMessage(context, R.string.voice_location_stopped)
@@ -241,7 +263,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         }
 
         showMessage(context, R.string.voice_no_matches)
-        startNextRecognition(context)
+        startNextRecognition()
     }
 
     private suspend fun disableGlobalSpoofing(context: Context) {
@@ -299,7 +321,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
     private suspend fun startNextRecognition(context: Context) {
         withContext(Dispatchers.Main) {
             context.startActivity(
-                VoiceCommandTileService.createRecognitionIntent(context)
+                Intent(context, VoiceCommandActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         }
@@ -318,6 +340,18 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        internal suspend fun processResults(
+            context: Context,
+            recognizedPhrases: List<String>,
+            startNextRecognition: suspend () -> Unit
+        ) {
+            VoiceCommandResultReceiver().processRecognizedPhrases(
+                context,
+                recognizedPhrases,
+                startNextRecognition
+            )
+        }
+
         private const val SECOND_STEP_DELAY_MILLIS = 2_500L
         private const val SYSTEM_TARGET = "@system"
         const val ACTION_PROCESS_RESULTS =

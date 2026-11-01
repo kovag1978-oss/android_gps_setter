@@ -3,9 +3,7 @@ package io.github.jqssun.gpssetter.ui
 import android.content.ComponentName
 import android.content.Intent
 import android.app.PendingIntent
-import android.net.Uri
 import android.os.Build
-import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -21,17 +19,17 @@ class VoiceCommandTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val recognitionIntent = createRecognitionIntent(this)
+        val voiceCommandIntent = Intent(this, VoiceCommandActivity::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            val recognitionPendingIntent = PendingIntent.getActivity(
+            val voiceCommandPendingIntent = PendingIntent.getActivity(
                 this,
                 0,
-                recognitionIntent,
+                voiceCommandIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            startActivityAndCollapse(recognitionPendingIntent)
+            startActivityAndCollapse(voiceCommandPendingIntent)
         } else {
-            startActivityAndCollapse(recognitionIntent)
+            startActivityAndCollapse(voiceCommandIntent)
         }
     }
 
@@ -58,16 +56,6 @@ class VoiceCommandTileService : TileService() {
 
     companion object {
         fun createRecognitionIntent(context: android.content.Context): Intent {
-            val resultIntent = Intent(context, VoiceCommandResultReceiver::class.java).apply {
-                action = VoiceCommandResultReceiver.ACTION_PROCESS_RESULTS
-                data = Uri.parse("gpssetter://voice-command/${System.currentTimeMillis()}")
-            }
-            val resultPendingIntent = PendingIntent.getBroadcast(
-                context,
-                0,
-                resultIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
             return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(
                     RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -84,8 +72,6 @@ class VoiceCommandTileService : TileService() {
                 putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, voiceLanguageTag())
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
-                putExtra(RecognizerIntent.EXTRA_RESULTS_PENDINGINTENT, resultPendingIntent)
-                putExtra(RecognizerIntent.EXTRA_RESULTS_PENDINGINTENT_BUNDLE, Bundle())
             }
         }
 
