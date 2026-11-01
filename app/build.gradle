@@ -8,7 +8,10 @@ plugins {
 }
 
 def tagName = '0.0.12'
-def signingPropertiesFile = rootProject.file("local.properties")
+def localSigningPropertiesFile = file("C:/signing.properties")
+def userSigningPropertiesFile = new File(System.getProperty("user.home"), "gpssetter-signing/signing.properties")
+def signingPropertiesFile = [localSigningPropertiesFile, userSigningPropertiesFile, rootProject.file("signing.properties")]
+        .find { it.exists() } ?: rootProject.file("signing.properties")
 def signingProperties = new Properties()
 if (signingPropertiesFile.exists()) {
     signingPropertiesFile.withInputStream { signingProperties.load(it) }
@@ -138,6 +141,6 @@ dependencies {
 
 gradle.taskGraph.whenReady { taskGraph ->
     if (!releaseSigningConfigured && taskGraph.allTasks.any { it.name.contains('Release') }) {
-        throw new GradleException("Release builds require keyAlias, keyPassword, storeFile, and storePassword in local.properties.")
+        throw new GradleException("Release builds require keyAlias, keyPassword, storeFile, and storePassword in signing.properties.")
     }
 }

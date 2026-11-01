@@ -53,12 +53,18 @@ jobs:
           cache: 'gradle'
 
       - name: Build
+        env:
+          STORE: ${{ secrets.STORE }}
+          LOCAL: ${{ secrets.LOCAL }}
         run: |
-          echo ${{ secrets.STORE }} | base64 -d > upload.jks
-          echo ${{ secrets.LOCAL }} | base64 -d > local.properties
+          set -euo pipefail
+          test -n "$STORE"
+          test -n "$LOCAL"
+          trap 'rm -f upload.jks signing.properties' EXIT
+          printf '%s' "$STORE" | base64 --decode > upload.jks
+          printf '%s' "$LOCAL" | base64 --decode > signing.properties
           chmod +x ./gradlew;
           ./gradlew :app:assembleFossRelease :app:assembleFullRelease --stacktrace
-          rm upload.jks local.properties
 
       # - name: Upload
       #   uses: actions/upload-artifact@v4
