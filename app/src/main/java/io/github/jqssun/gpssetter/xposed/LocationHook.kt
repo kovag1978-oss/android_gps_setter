@@ -87,6 +87,55 @@ object LocationHook {
         return systemSpoofEnabled
     }
 
+    private fun spoofedCopy(origin: Location): Location {
+        val location = Location(origin)
+        location.latitude = newlat
+        location.longitude = newlng
+        location.altitude = 0.0
+        location.speed = 0F
+        location.accuracy = accuracy
+        location.speedAccuracyMetersPerSecond = 0F
+        try {
+            HiddenApiBypass.invoke(location.javaClass, location, "setIsFromMockProvider", false)
+        } catch (e: Exception) {
+            XposedBridge.log("LocationHook: unable to set mock $e")
+        }
+        return location
+    }
+
+    // Covers locations delivered to listeners (including PASSIVE requests), not only getLastLocation.
+    private fun hookProviderDelivery(classLoader: ClassLoader) {
+        try {
+            val managerClass = XposedHelpers.findClass(
+                "com.android.server.location.provider.LocationProviderManager",
+                classLoader
+            )
+            val resultClass = XposedHelpers.findClass("android.location.LocationResult", classLoader)
+            val hook = object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    val result = param.args.firstOrNull { resultClass.isInstance(it) } ?: return
+                    if (!updateSystemLocationIfNeeded()) return
+                    try {
+                        @Suppress("UNCHECKED_CAST")
+                        val origins = XposedHelpers.callMethod(result, "asList") as List<Location>
+                        val spoofed = origins.map { spoofedCopy(it) }
+                        val index = param.args.indexOf(result)
+                        param.args[index] = XposedHelpers.callStaticMethod(resultClass, "create", spoofed)
+                    } catch (e: Throwable) {
+                        XposedBridge.log("LocationHook: unable to spoof delivered location $e")
+                    }
+                }
+            }
+            val methods = managerClass.declaredMethods.filter { method ->
+                method.name == "onReportLocation" && method.parameterTypes.any { resultClass.isAssignableFrom(it) }
+            }
+            methods.forEach { XposedBridge.hookMethod(it, hook) }
+            XposedBridge.log("LocationHook: hooked ${methods.size} onReportLocation method(s)")
+        } catch (e: Throwable) {
+            XposedBridge.log("LocationHook: provider delivery hook failed $e")
+        }
+    }
+
     @SuppressLint("NewApi")
     fun initHooks(lpparam: XC_LoadPackage.LoadPackageParam) {
 
@@ -222,6 +271,7 @@ object LocationHook {
                         }
                     }
                 }
+                hookProviderDelivery(lpparam.classLoader)
                 XposedHelpers.findAndHookMethod(
                     LocationManagerServiceClass,
                     "injectLocation",
