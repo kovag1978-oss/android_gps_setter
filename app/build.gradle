@@ -8,7 +8,7 @@ plugins {
 }
 
 def tagName = '0.0.14'
-def localSigningPropertiesFile = file("C:/signing.properties")
+def localSigningPropertiesFile = new File("C:/signing.properties")
 def userSigningPropertiesFile = new File(System.getProperty("user.home"), "gpssetter-signing/signing.properties")
 def signingPropertiesFile = [localSigningPropertiesFile, userSigningPropertiesFile, rootProject.file("signing.properties")]
         .find { it.exists() } ?: rootProject.file("signing.properties")
