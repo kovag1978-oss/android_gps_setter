@@ -7,7 +7,7 @@ plugins {
     id 'com.google.devtools.ksp'
 }
 
-def tagName = '0.0.14'
+def tagName = '0.0.15'
 def localSigningPropertiesFile = new File("C:/signing.properties")
 def userSigningPropertiesFile = new File(System.getProperty("user.home"), "gpssetter-signing/signing.properties")
 def signingPropertiesFile = [localSigningPropertiesFile, userSigningPropertiesFile, rootProject.file("signing.properties")]
@@ -25,7 +25,7 @@ android {
         applicationId "io.github.kovag1978_oss.gpssetter"
         minSdk 27
         targetSdk 34
-        versionCode 14
+        versionCode 15
         versionName tagName
         // testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "TAG_NAME", "\"${tagName}\"")

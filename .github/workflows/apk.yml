@@ -80,10 +80,16 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Spoof location updates delivered by Android 14+ system location providers, including listener and PASSIVE provider updates, not only last-known locations.
+            - Spoof the cached last location and the location handed to a listener on registration, so apps no longer briefly see the real position when opening a map.
+            - Spoof locations at the final system delivery step, covering all listeners and PendingIntents.
+            - Spoof Location parcels leaving hooked processes (e.g. Google Play Services to apps).
+            - In spoofed apps, hide Wi-Fi scan results and cell tower info so map SDKs cannot locate the device by radio signals.
 
             ## Изменения
-            - Добавлена подмена геопозиции, доставляемой системными провайдерами Android 14+, включая обновления для слушателей и PASSIVE-провайдера; ранее подменялась только последняя известная геопозиция.
+            - Подмена кэшированной последней геопозиции и геопозиции, выдаваемой слушателю при регистрации: приложения больше не видят реальное место при открытии карты.
+            - Подмена геопозиции на последнем шаге системной доставки (все слушатели и PendingIntent).
+            - Подмена Location при передаче между процессами (например, из сервисов Google Play в приложения).
+            - В приложениях с подменой скрываются результаты сканирования Wi-Fi и данные сотовых вышек, чтобы SDK карт не определяли место по радиосигналам.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
@@ -98,10 +104,16 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Spoof location updates delivered by Android 14+ system location providers, including listener and PASSIVE provider updates, not only last-known locations.
+            - Spoof the cached last location and the location handed to a listener on registration, so apps no longer briefly see the real position when opening a map.
+            - Spoof locations at the final system delivery step, covering all listeners and PendingIntents.
+            - Spoof Location parcels leaving hooked processes (e.g. Google Play Services to apps).
+            - In spoofed apps, hide Wi-Fi scan results and cell tower info so map SDKs cannot locate the device by radio signals.
 
             ## Изменения
-            - Добавлена подмена геопозиции, доставляемой системными провайдерами Android 14+, включая обновления для слушателей и PASSIVE-провайдера; ранее подменялась только последняя известная геопозиция.
+            - Подмена кэшированной последней геопозиции и геопозиции, выдаваемой слушателю при регистрации: приложения больше не видят реальное место при открытии карты.
+            - Подмена геопозиции на последнем шаге системной доставки (все слушатели и PendingIntent).
+            - Подмена Location при передаче между процессами (например, из сервисов Google Play в приложения).
+            - В приложениях с подменой скрываются результаты сканирования Wi-Fi и данные сотовых вышек, чтобы SDK карт не определяли место по радиосигналам.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
