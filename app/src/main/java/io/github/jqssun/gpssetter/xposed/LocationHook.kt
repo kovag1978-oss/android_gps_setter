@@ -131,6 +131,35 @@ object LocationHook {
             }
             methods.forEach { XposedBridge.hookMethod(it, hook) }
             XposedBridge.log("LocationHook: hooked ${methods.size} onReportLocation method(s)")
+
+            // Cached real location is handed to new listeners right on registration; spoof it too.
+            val lastHook = object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    val origin = param.result as? Location ?: return
+                    if (!updateSystemLocationIfNeeded()) return
+                    param.result = spoofedCopy(origin)
+                }
+            }
+            val lastMethods = managerClass.declaredMethods.filter {
+                it.name == "getLastLocationUnsafe" && Location::class.java.isAssignableFrom(it.returnType)
+            }
+            lastMethods.forEach { XposedBridge.hookMethod(it, lastHook) }
+
+            val registrationClass = XposedHelpers.findClass(
+                "com.android.server.location.provider.LocationProviderManager\$Registration",
+                classLoader
+            )
+            val acceptMethods = managerClass.declaredClasses
+                .filter { registrationClass.isAssignableFrom(it) }
+                .flatMap { it.declaredMethods.toList() }
+                .filter { method ->
+                    method.name == "acceptLocationChange" && !java.lang.reflect.Modifier.isAbstract(method.modifiers) &&
+                        method.parameterTypes.any { resultClass.isAssignableFrom(it) }
+                }
+            acceptMethods.forEach { XposedBridge.hookMethod(it, hook) }
+            XposedBridge.log(
+                "LocationHook: hooked ${lastMethods.size} getLastLocationUnsafe, ${acceptMethods.size} acceptLocationChange"
+            )
         } catch (e: Throwable) {
             XposedBridge.log("LocationHook: provider delivery hook failed $e")
         }
