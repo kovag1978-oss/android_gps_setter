@@ -387,6 +387,33 @@ object LocationHook {
                 }
             }
 
+            // Locations leave this process through Parcel (e.g. GMS fused client -> app), bypassing getters.
+            try {
+                val parcelMethod = LocationClass.getDeclaredMethod(
+                    "writeToParcel", android.os.Parcel::class.java, Int::class.javaPrimitiveType
+                )
+                XposedBridge.hookMethod(parcelMethod, object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        if (!updateAppLocationIfNeeded(lpparam.packageName)) return
+                        try {
+                            val copy = Location(param.thisObject as Location)
+                            copy.latitude = newlat
+                            copy.longitude = newlng
+                            copy.altitude = 0.0
+                            copy.speed = 0F
+                            copy.accuracy = accuracy
+                            copy.speedAccuracyMetersPerSecond = 0F
+                            XposedBridge.invokeOriginalMethod(parcelMethod, copy, param.args)
+                            param.result = null
+                        } catch (e: Throwable) {
+                            XposedBridge.log("LocationHook: unable to spoof parcel $e")
+                        }
+                    }
+                })
+            } catch (e: Throwable) {
+                XposedBridge.log("LocationHook: parcel hook failed $e")
+            }
+
             XposedHelpers.findAndHookMethod(
                 LocationClass,
                 "set",
