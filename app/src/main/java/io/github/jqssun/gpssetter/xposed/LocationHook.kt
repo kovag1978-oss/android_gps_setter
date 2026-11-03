@@ -157,6 +157,16 @@ object LocationHook {
                         method.parameterTypes.any { resultClass.isAssignableFrom(it) }
                 }
             acceptMethods.forEach { XposedBridge.hookMethod(it, hook) }
+
+            // Last hop before the location leaves system_server, covers every listener and PendingIntent.
+            val transportMethods = managerClass.declaredClasses
+                .flatMap { it.declaredMethods.toList() }
+                .filter { method ->
+                    method.name == "deliverOnLocationChanged" && !java.lang.reflect.Modifier.isAbstract(method.modifiers) &&
+                        method.parameterTypes.any { resultClass.isAssignableFrom(it) }
+                }
+            transportMethods.forEach { XposedBridge.hookMethod(it, hook) }
+            XposedBridge.log("LocationHook: hooked ${transportMethods.size} deliverOnLocationChanged")
             XposedBridge.log(
                 "LocationHook: hooked ${lastMethods.size} getLastLocationUnsafe, ${acceptMethods.size} acceptLocationChange"
             )
