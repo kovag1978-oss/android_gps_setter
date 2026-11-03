@@ -496,6 +496,59 @@ object LocationHook {
                     }
                 }
             )
+            hookRadioSignals(lpparam)
         }
+    }
+
+    // MapKit-like locators also position by Wi-Fi scans and cell towers; hide them while spoofing.
+    private fun hookRadioSignals(lpparam: XC_LoadPackage.LoadPackageParam) {
+        val pkg = lpparam.packageName
+        var count = 0
+        fun hideAll(className: String, methodName: String, result: Any?) {
+            try {
+                val clazz = XposedHelpers.findClass(className, lpparam.classLoader)
+                val hook = object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        if (updateAppLocationIfNeeded(pkg)) param.result = result
+                    }
+                }
+                count += XposedBridge.hookAllMethods(clazz, methodName, hook).size
+            } catch (e: Throwable) {
+                XposedBridge.log("LocationHook: radio hook $className.$methodName failed $e")
+            }
+        }
+
+        hideAll("android.net.wifi.WifiManager", "getScanResults", emptyList<Any>())
+        hideAll("android.net.wifi.WifiManager", "startScan", false)
+        hideAll("android.telephony.TelephonyManager", "getAllCellInfo", emptyList<Any>())
+        hideAll("android.telephony.TelephonyManager", "getNeighboringCellInfo", emptyList<Any>())
+        hideAll("android.telephony.TelephonyManager", "getCellLocation", null)
+        hideAll("android.telephony.PhoneStateListener\$IPhoneStateListenerStub", "onCellInfoChanged", null)
+        hideAll("android.telephony.PhoneStateListener\$IPhoneStateListenerStub", "onCellLocationChanged", null)
+        hideAll("android.telephony.TelephonyCallback\$IPhoneStateListenerStub", "onCellInfoChanged", null)
+        hideAll("android.telephony.TelephonyCallback\$IPhoneStateListenerStub", "onCellLocationChanged", null)
+
+        try {
+            val clazz = XposedHelpers.findClass("android.telephony.TelephonyManager", lpparam.classLoader)
+            val hook = object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    if (!updateAppLocationIfNeeded(pkg)) return
+                    val executor = param.args.getOrNull(0) as? java.util.concurrent.Executor ?: return
+                    val callback = param.args.getOrNull(1) ?: return
+                    executor.execute {
+                        try {
+                            XposedHelpers.callMethod(callback, "onCellInfo", emptyList<Any>())
+                        } catch (e: Throwable) {
+                            XposedBridge.log("LocationHook: cell callback failed $e")
+                        }
+                    }
+                    param.result = null
+                }
+            }
+            count += XposedBridge.hookAllMethods(clazz, "requestCellInfoUpdate", hook).size
+        } catch (e: Throwable) {
+            XposedBridge.log("LocationHook: requestCellInfoUpdate hook failed $e")
+        }
+        XposedBridge.log("LocationHook: hooked $count radio method(s) in $pkg")
     }
 }
