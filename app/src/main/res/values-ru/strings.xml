@@ -42,7 +42,10 @@
     <string name="latest_version_installed_message">У вас уже установлена последняя версия.</string>
     <string name="update_check_failed">Не удалось проверить обновления</string>
     <string name="update_check_failed_message">Не удалось проверить обновления на GitHub (%1$s). Проверьте подключение к интернету и повторите попытку.</string>
-    <string name="update_download_failed">Не удалось открыть страницу загрузки обновления.</string>
+    <string name="update_download_title">Обновление GPS Setter</string>
+    <string name="update_download_started">Загрузка обновления…</string>
+    <string name="update_download_failed">Не удалось скачать обновление или открыть установщик.</string>
+    <string name="update_install_permission_required">Разрешите GPS Setter устанавливать обновления и вернитесь в приложение.</string>
     <string name="restart_after_update_title">Перезагрузите устройство</string>
     <string name="restart_after_update_message">Чтобы применить обновление модуля LSPosed, перезагрузите устройство.</string>
     <string name="add_fav_dialog_title">Добавить в избранное</string>

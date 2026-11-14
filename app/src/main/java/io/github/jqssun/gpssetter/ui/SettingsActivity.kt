@@ -1,11 +1,16 @@
 package io.github.jqssun.gpssetter.ui
 
 
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.Settings
 import android.text.Editable
 import android.text.InputType
@@ -20,6 +25,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.DropDownPreference
@@ -38,6 +44,7 @@ import io.github.jqssun.gpssetter.utils.VoiceCommandOverlayService
 import io.github.jqssun.gpssetter.update.UpdateChecker
 import io.github.jqssun.gpssetter.utils.ext.showToast
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -146,6 +153,91 @@ class ActivitySettings : AppCompatActivity() {
 
         @Inject
         lateinit var updateChecker: UpdateChecker
+
+        @Inject
+        lateinit var downloadManager: DownloadManager
+
+        private var pendingUpdate: UpdateChecker.Update? = null
+        private var pendingInstallerUri: Uri? = null
+        private var pendingDownloadId = INVALID_DOWNLOAD_ID
+
+        private val installPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                if (!requireContext().packageManager.canRequestPackageInstalls()) {
+                    pendingUpdate = null
+                    pendingInstallerUri = null
+                    requireContext().showToast(
+                        getString(R.string.update_install_permission_required)
+                    )
+                    return@registerForActivityResult
+                }
+
+                val update = pendingUpdate
+                val installerUri = pendingInstallerUri
+                pendingUpdate = null
+                pendingInstallerUri = null
+                when {
+                    update != null -> downloadUpdate(update)
+                    installerUri != null -> openApkInstaller(installerUri)
+                }
+            }
+
+        private val downloadCompleteReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+                val downloadId = intent.getLongExtra(
+                    DownloadManager.EXTRA_DOWNLOAD_ID,
+                    INVALID_DOWNLOAD_ID
+                )
+                if (downloadId != pendingDownloadId) return
+                pendingDownloadId = INVALID_DOWNLOAD_ID
+                handleDownloadComplete(downloadId)
+            }
+        }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
+            super.onCreate(savedInstanceState)
+            pendingDownloadId = savedInstanceState?.getLong(
+                STATE_PENDING_DOWNLOAD_ID,
+                INVALID_DOWNLOAD_ID
+            ) ?: INVALID_DOWNLOAD_ID
+            pendingUpdate = savedInstanceState?.getString(STATE_PENDING_UPDATE_URL)?.let { url ->
+                UpdateChecker.Update(
+                    name = savedInstanceState.getString(STATE_PENDING_UPDATE_NAME).orEmpty(),
+                    changelog = savedInstanceState.getString(STATE_PENDING_UPDATE_CHANGELOG).orEmpty(),
+                    assetUrl = url
+                )
+            }
+            pendingInstallerUri =
+                savedInstanceState?.getString(STATE_PENDING_INSTALLER_URI)?.let(Uri::parse)
+        }
+
+        override fun onSaveInstanceState(outState: Bundle) {
+            outState.putLong(STATE_PENDING_DOWNLOAD_ID, pendingDownloadId)
+            pendingUpdate?.let { update ->
+                outState.putString(STATE_PENDING_UPDATE_URL, update.assetUrl)
+                outState.putString(STATE_PENDING_UPDATE_NAME, update.name)
+                outState.putString(STATE_PENDING_UPDATE_CHANGELOG, update.changelog)
+            }
+            outState.putString(STATE_PENDING_INSTALLER_URI, pendingInstallerUri?.toString())
+            super.onSaveInstanceState(outState)
+        }
+
+        override fun onStart() {
+            super.onStart()
+            ContextCompat.registerReceiver(
+                requireContext(),
+                downloadCompleteReceiver,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                ContextCompat.RECEIVER_EXPORTED
+            )
+            resumeCompletedDownload()
+        }
+
+        override fun onStop() {
+            requireContext().unregisterReceiver(downloadCompleteReceiver)
+            super.onStop()
+        }
 
         private val overlayPermissionLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -273,13 +365,164 @@ class ActivitySettings : AppCompatActivity() {
                 )
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.update_button) { _, _ ->
-                    try {
-                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.assetUrl)))
-                    } catch (_: ActivityNotFoundException) {
-                        requireContext().showToast(getString(R.string.update_download_failed))
-                    }
+                    prepareUpdateDownload(update)
                 }
                 .show()
+        }
+
+        private fun prepareUpdateDownload(update: UpdateChecker.Update) {
+            if (requireContext().packageManager.canRequestPackageInstalls()) {
+                downloadUpdate(update)
+                return
+            }
+
+            pendingUpdate = update
+            requireContext().showToast(
+                getString(R.string.update_install_permission_required)
+            )
+            val intent = Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:${requireContext().packageName}")
+            )
+            try {
+                installPermissionLauncher.launch(intent)
+            } catch (exception: ActivityNotFoundException) {
+                pendingUpdate = null
+                Timber.e(exception, "Could not open install-source settings")
+                requireContext().showToast(getString(R.string.update_download_failed))
+            }
+        }
+
+        private fun downloadUpdate(update: UpdateChecker.Update) {
+            val downloadUri = Uri.parse(update.assetUrl)
+            if (downloadUri.scheme != "https" || downloadUri.host != "github.com") {
+                Timber.w("Rejected unexpected update URL: %s", update.assetUrl)
+                requireContext().showToast(getString(R.string.update_download_failed))
+                return
+            }
+
+            val request = DownloadManager.Request(downloadUri)
+                .setTitle(getString(R.string.update_download_title))
+                .setDescription(update.name)
+                .setMimeType(APK_MIME_TYPE)
+                .setNotificationVisibility(
+                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                )
+                .setDestinationInExternalFilesDir(
+                    requireContext(),
+                    Environment.DIRECTORY_DOWNLOADS,
+                    "gps-setter-update-${System.currentTimeMillis()}.apk"
+                )
+
+            try {
+                pendingDownloadId = downloadManager.enqueue(request)
+                requireContext().showToast(getString(R.string.update_download_started))
+            } catch (exception: IllegalArgumentException) {
+                Timber.e(exception, "Invalid APK update download request")
+                requireContext().showToast(getString(R.string.update_download_failed))
+            } catch (exception: SecurityException) {
+                Timber.e(exception, "APK update download was denied")
+                requireContext().showToast(getString(R.string.update_download_failed))
+            }
+        }
+
+        private fun handleDownloadComplete(downloadId: Long) {
+            val cursor = downloadManager.query(DownloadManager.Query().setFilterById(downloadId))
+            val successful = cursor.use {
+                if (!it.moveToFirst()) {
+                    Timber.w("APK update download %d disappeared from DownloadManager", downloadId)
+                    false
+                } else {
+                    val status = it.getInt(
+                        it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
+                    )
+                    if (status != DownloadManager.STATUS_SUCCESSFUL) {
+                        val reason = it.getInt(
+                            it.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON)
+                        )
+                        Timber.w("APK update download %d failed with reason %d", downloadId, reason)
+                        false
+                    } else {
+                        true
+                    }
+                }
+            }
+            if (!successful) {
+                requireContext().showToast(getString(R.string.update_download_failed))
+                return
+            }
+
+            val apkUri = downloadManager.getUriForDownloadedFile(downloadId)
+            if (apkUri == null) {
+                Timber.w("APK update download %d has no content URI", downloadId)
+                requireContext().showToast(getString(R.string.update_download_failed))
+                return
+            }
+            openApkInstaller(apkUri)
+        }
+
+        private fun resumeCompletedDownload() {
+            val downloadId = pendingDownloadId
+            if (downloadId == INVALID_DOWNLOAD_ID) return
+
+            val cursor = downloadManager.query(DownloadManager.Query().setFilterById(downloadId))
+            val completed = cursor.use {
+                if (!it.moveToFirst()) {
+                    false
+                } else {
+                    val status = it.getInt(
+                        it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
+                    )
+                    status != DownloadManager.STATUS_PENDING &&
+                        status != DownloadManager.STATUS_RUNNING &&
+                        status != DownloadManager.STATUS_PAUSED
+                }
+            }
+            if (completed) {
+                pendingDownloadId = INVALID_DOWNLOAD_ID
+                handleDownloadComplete(downloadId)
+            }
+        }
+
+        private fun openApkInstaller(apkUri: Uri) {
+            if (!requireContext().packageManager.canRequestPackageInstalls()) {
+                pendingInstallerUri = apkUri
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:${requireContext().packageName}")
+                )
+                try {
+                    installPermissionLauncher.launch(intent)
+                } catch (exception: ActivityNotFoundException) {
+                    pendingInstallerUri = null
+                    Timber.e(exception, "Could not open install-source settings")
+                    requireContext().showToast(getString(R.string.update_download_failed))
+                }
+                return
+            }
+
+            val installIntent = Intent(Intent.ACTION_VIEW)
+                .setDataAndType(apkUri, APK_MIME_TYPE)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            try {
+                startActivity(installIntent)
+            } catch (exception: ActivityNotFoundException) {
+                Timber.e(exception, "No APK installer is available")
+                requireContext().showToast(getString(R.string.update_download_failed))
+            } catch (exception: SecurityException) {
+                Timber.e(exception, "APK installer could not read downloaded APK")
+                requireContext().showToast(getString(R.string.update_download_failed))
+            }
+        }
+
+        private companion object {
+            const val APK_MIME_TYPE = "application/vnd.android.package-archive"
+            const val INVALID_DOWNLOAD_ID = -1L
+            const val STATE_PENDING_DOWNLOAD_ID = "pending_update_download_id"
+            const val STATE_PENDING_INSTALLER_URI = "pending_update_installer_uri"
+            const val STATE_PENDING_UPDATE_URL = "pending_update_url"
+            const val STATE_PENDING_UPDATE_NAME = "pending_update_name"
+            const val STATE_PENDING_UPDATE_CHANGELOG = "pending_update_changelog"
         }
 
         private fun getCommaReplacerTextWatcher(editText: EditText): TextWatcher {

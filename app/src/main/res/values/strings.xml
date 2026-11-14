@@ -50,7 +50,10 @@
     <string name="latest_version_installed_message">You already have the latest version.</string>
     <string name="update_check_failed">Update check failed</string>
     <string name="update_check_failed_message">Could not check GitHub for updates (%1$s). Check your internet connection and try again.</string>
-    <string name="update_download_failed">Could not open the update download.</string>
+    <string name="update_download_title">GPS Setter update</string>
+    <string name="update_download_started">Downloading update…</string>
+    <string name="update_download_failed">Could not download or open the update installer.</string>
+    <string name="update_install_permission_required">Allow GPS Setter to install updates, then return to continue.</string>
     <string name="restart_after_update_title">Restart device</string>
     <string name="restart_after_update_message">To apply the LSPosed module update, restart your device.</string>
     <!-- Dialog -->

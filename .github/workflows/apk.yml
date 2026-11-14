@@ -84,12 +84,14 @@ jobs:
             - Long-press the voice tile to show the floating button; grant overlay permission when prompted.
             - The floating button is movable and mirrors the tile's active/inactive location-spoofing state.
             - Added hold progress, vibration, and an upward dismiss animation when disabling the floating button.
+            - Fixed in-app updates: download the matching APK and open Android's package installer.
 
             ## Изменения
             - Добавлены настройка голосовой плитки быстрых настроек и плавающая кнопка.
             - Долгое нажатие на голосовую плитку показывает плавающую кнопку; при необходимости приложение запросит разрешение на показ поверх окон.
             - Плавающую кнопку можно перемещать; её активное/неактивное состояние соответствует плитке геолокации.
             - При отключении кнопки удержанием показываются прогресс, вибрация и анимация вылета вверх.
+            - Исправлено обновление из приложения: APK скачивается, затем открывается системный установщик Android.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
@@ -108,12 +110,14 @@ jobs:
             - Long-press the voice tile to show the floating button; grant overlay permission when prompted.
             - The floating button is movable and mirrors the tile's active/inactive location-spoofing state.
             - Added hold progress, vibration, and an upward dismiss animation when disabling the floating button.
+            - Fixed in-app updates: download the matching APK and open Android's package installer.
 
             ## Изменения
             - Добавлены настройка голосовой плитки быстрых настроек и плавающая кнопка.
             - Долгое нажатие на голосовую плитку показывает плавающую кнопку; при необходимости приложение запросит разрешение на показ поверх окон.
             - Плавающую кнопку можно перемещать; её активное/неактивное состояние соответствует плитке геолокации.
             - При отключении кнопки удержанием показываются прогресс, вибрация и анимация вылета вверх.
+            - Исправлено обновление из приложения: APK скачивается, затем открывается системный установщик Android.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
