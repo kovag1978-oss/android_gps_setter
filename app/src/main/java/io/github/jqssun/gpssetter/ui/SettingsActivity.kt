@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.text.Editable
 import android.text.InputType
 import android.text.TextWatcher
@@ -16,6 +17,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -25,12 +27,15 @@ import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceDataStore
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.SwitchPreferenceCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.jqssun.gpssetter.R
 import io.github.jqssun.gpssetter.databinding.ActivitySettingsBinding
-import io.github.jqssun.gpssetter.update.UpdateChecker
+import io.github.jqssun.gpssetter.gsApp
 import io.github.jqssun.gpssetter.utils.PrefManager
+import io.github.jqssun.gpssetter.utils.VoiceCommandOverlayService
+import io.github.jqssun.gpssetter.update.UpdateChecker
 import io.github.jqssun.gpssetter.utils.ext.showToast
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -48,6 +53,8 @@ class ActivitySettings : AppCompatActivity() {
                 "system_hooked" -> PrefManager.isSystemHooked
                 "random_position" -> PrefManager.isRandomPosition
                 "separate_control" -> PrefManager.isSeparateControlEnabled
+                "voice_quick_tile" -> PrefManager.isVoiceTileEnabled
+                "voice_floating_button" -> PrefManager.isVoiceFloatingButtonEnabled
                 else -> throw IllegalArgumentException("Invalid key $key")
             }
         }
@@ -57,6 +64,14 @@ class ActivitySettings : AppCompatActivity() {
                 "system_hooked" -> PrefManager.isSystemHooked = value
                 "random_position" -> PrefManager.isRandomPosition = value
                 "separate_control" -> PrefManager.isSeparateControlEnabled = value
+                "voice_quick_tile" -> {
+                    VoiceCommandTileService.setEnabled(gsApp, value)
+                    PrefManager.isVoiceTileEnabled = value
+                }
+                "voice_floating_button" -> {
+                    VoiceCommandOverlayService.sync(gsApp, value)
+                    PrefManager.isVoiceFloatingButtonEnabled = value
+                }
                 else -> throw IllegalArgumentException("Invalid key $key")
             }
         }
@@ -132,9 +147,41 @@ class ActivitySettings : AppCompatActivity() {
         @Inject
         lateinit var updateChecker: UpdateChecker
 
+        private val overlayPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                if (Settings.canDrawOverlays(requireContext())) {
+                    findPreference<SwitchPreferenceCompat>("voice_floating_button")
+                        ?.isChecked = true
+                } else {
+                    requireContext().showToast(
+                        getString(R.string.voice_overlay_permission_required)
+                    )
+                }
+            }
+
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             preferenceManager?.preferenceDataStore = SettingPreferenceDataStore()
             setPreferencesFromResource(R.xml.preferences, rootKey)
+
+            findPreference<SwitchPreferenceCompat>("voice_floating_button")
+                ?.setOnPreferenceChangeListener { _, newValue ->
+                    if (newValue == true && !Settings.canDrawOverlays(requireContext())) {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${requireContext().packageName}")
+                        )
+                        try {
+                            overlayPermissionLauncher.launch(intent)
+                        } catch (_: ActivityNotFoundException) {
+                            requireContext().showToast(
+                                getString(R.string.voice_overlay_permission_required)
+                            )
+                        }
+                        false
+                    } else {
+                        true
+                    }
+                }
 
             findPreference<Preference>("check_update")?.setOnPreferenceClickListener { preference ->
                 preference.isEnabled = false
@@ -197,7 +244,13 @@ class ActivitySettings : AppCompatActivity() {
                 }
                 true
             }
+        }
 
+        override fun onResume() {
+            super.onResume()
+            findPreference<SwitchPreferenceCompat>("voice_floating_button")
+                ?.isChecked = PrefManager.isVoiceFloatingButtonEnabled &&
+                Settings.canDrawOverlays(requireContext())
         }
 
         private fun showUpdateCheckMessage(title: Int, message: Int, reason: String? = null) {

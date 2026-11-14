@@ -1,9 +1,11 @@
 package io.github.jqssun.gpssetter.ui
 
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.app.PendingIntent
 import android.os.Build
+import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -55,6 +57,18 @@ class VoiceCommandTileService : TileService() {
     }
 
     companion object {
+        fun setEnabled(context: Context, enabled: Boolean) {
+            context.packageManager.setComponentEnabledSetting(
+                ComponentName(context, VoiceCommandTileService::class.java),
+                if (enabled) {
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                } else {
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                },
+                PackageManager.DONT_KILL_APP
+            )
+        }
+
         fun createRecognitionIntent(context: android.content.Context): Intent {
             return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(

@@ -97,6 +97,14 @@
     <string name="settings">Settings</string>
     <string name="settings_of_accuracy">Accuracy</string>
     <string name="preference_category_general">General</string>
+    <string name="voice_control_category">Voice control</string>
+    <string name="voice_quick_tile">Quick settings tile</string>
+    <string name="voice_quick_tile_summary">Enable or disable voice control from the notification shade. Add the tile using Android’s Quick Settings editor.</string>
+    <string name="voice_floating_button">Floating voice button</string>
+    <string name="voice_floating_button_active">Location spoofing is active</string>
+    <string name="voice_floating_button_summary">Show a floating button to start voice control. Requires permission to display over other apps.</string>
+    <string name="voice_floating_button_notification">Voice control button is available on screen</string>
+    <string name="voice_overlay_permission_required">Allow GPS Setter to display over other apps to enable the floating button.</string>
     <string name="enter_valid_input">Enter a valid number</string>
     <string name="delete_favorite_item">Delete favorite</string>
     <string name="title_activity_settings">Settings</string>

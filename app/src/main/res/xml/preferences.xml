@@ -39,6 +39,24 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/voice_control_category">
+
+        <SwitchPreferenceCompat
+            android:title="@string/voice_quick_tile"
+            android:summary="@string/voice_quick_tile_summary"
+            android:key="voice_quick_tile"
+            android:defaultValue="true"
+            android:widgetLayout="@layout/preference_switch_widget" />
+
+        <SwitchPreferenceCompat
+            android:title="@string/voice_floating_button"
+            android:summary="@string/voice_floating_button_summary"
+            android:key="voice_floating_button"
+            android:defaultValue="false"
+            android:widgetLayout="@layout/preference_switch_widget" />
+
+    </PreferenceCategory>
+
     <PreferenceCategory app:title="@string/xposed">
 
         <SwitchPreferenceCompat

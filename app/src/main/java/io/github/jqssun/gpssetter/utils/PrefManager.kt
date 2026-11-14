@@ -23,6 +23,10 @@ object PrefManager   {
     private const val SEPARATE_CONTROL = "separate_control"
     private const val APP_PROFILES = "app_location_profiles"
     private const val PENDING_VOICE_TARGET = "pending_voice_target"
+    private const val VOICE_TILE_ENABLED = "voice_quick_tile"
+    private const val VOICE_FLOATING_BUTTON_ENABLED = "voice_floating_button"
+    private const val VOICE_FLOATING_BUTTON_X = "voice_floating_button_x"
+    private const val VOICE_FLOATING_BUTTON_Y = "voice_floating_button_y"
 
 
     private val pref: SharedPreferences by lazy {
@@ -75,6 +79,22 @@ object PrefManager   {
     var isJoystickEnabled: Boolean
         get() = pref.getBoolean(ENABLE_JOYSTICK, false)
         set(value) = pref.edit().putBoolean(ENABLE_JOYSTICK, value).apply()
+
+    var isVoiceTileEnabled: Boolean
+        get() = pref.getBoolean(VOICE_TILE_ENABLED, true)
+        set(value) { pref.edit().putBoolean(VOICE_TILE_ENABLED, value).apply() }
+
+    var isVoiceFloatingButtonEnabled: Boolean
+        get() = pref.getBoolean(VOICE_FLOATING_BUTTON_ENABLED, false)
+        set(value) { pref.edit().putBoolean(VOICE_FLOATING_BUTTON_ENABLED, value).apply() }
+
+    var voiceFloatingButtonX: Int
+        get() = pref.getInt(VOICE_FLOATING_BUTTON_X, -1)
+        set(value) { pref.edit().putInt(VOICE_FLOATING_BUTTON_X, value).apply() }
+
+    var voiceFloatingButtonY: Int
+        get() = pref.getInt(VOICE_FLOATING_BUTTON_Y, -1)
+        set(value) { pref.edit().putInt(VOICE_FLOATING_BUTTON_Y, value).apply() }
 
     var isSeparateControlEnabled: Boolean
         get() = pref.getBoolean(SEPARATE_CONTROL, false)

@@ -50,6 +50,14 @@
             android:exported="false"
             android:theme="@style/Theme.GPSSetter.VoiceCommand" />
         <activity
+            android:name=".ui.VoiceTilePreferencesActivity"
+            android:exported="true"
+            android:theme="@style/Theme.GPSSetter.VoiceCommand">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".ui.MapActivity"
             android:exported="true"
             android:screenOrientation="portrait">
@@ -72,6 +80,15 @@
             <meta-data
                 android:name="android.service.quicksettings.TOGGLEABLE_TILE"
                 android:value="false" />
+        </service>
+
+        <service
+            android:name=".utils.VoiceCommandOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keep the user-enabled floating voice command button available while the app is not visible" />
         </service>
 
         <receiver

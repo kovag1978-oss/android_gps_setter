@@ -42,7 +42,9 @@ Each active app profile has its own ongoing notification. Applying a new locatio
 
 ## Voice control
 
-Add the GPS Setter tile to Android Quick Settings and tap it to open Android's speech recognizer. GPS Setter itself does not need to be opened.
+Enable the Quick Settings tile and/or the floating voice button in **Settings → Voice control**. The floating button requires permission to display over other apps. Add the GPS Setter tile to Android Quick Settings and tap it to open Android's speech recognizer; long-press the tile to show the floating button. GPS Setter itself does not need to be opened.
+
+The floating button can be moved anywhere on screen. Its color follows the tile state (blue while location spoofing is active, gray otherwise). Hold it for one second to disable and dismiss it; a progress ring, vibration, and upward exit animation indicate when it has been disabled.
 
 - With separate control enabled, the first prompt lists the enabled apps' voice commands and saved favorites and is labeled **Step 1 of 2**.
 - Say a favorite name to apply that location to all enabled app profiles in one step, or say **“turn off”** to stop all system and app spoofing.

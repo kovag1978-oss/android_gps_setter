@@ -86,6 +86,14 @@
     <string name="settings">Настройки</string>
     <string name="settings_of_accuracy">Точность</string>
     <string name="preference_category_general">Общие</string>
+    <string name="voice_control_category">Голосовое управление</string>
+    <string name="voice_quick_tile">Плитка быстрых настроек</string>
+    <string name="voice_quick_tile_summary">Включить или выключить голосовое управление из шторки. Добавьте плитку через редактор быстрых настроек Android.</string>
+    <string name="voice_floating_button">Плавающая кнопка голосового управления</string>
+    <string name="voice_floating_button_active">Подмена геолокации включена</string>
+    <string name="voice_floating_button_summary">Показывать плавающую кнопку для запуска голосового управления. Требуется разрешение на показ поверх других приложений.</string>
+    <string name="voice_floating_button_notification">Кнопка голосового управления доступна на экране</string>
+    <string name="voice_overlay_permission_required">Разрешите GPS Setter показывать окна поверх других приложений, чтобы включить плавающую кнопку.</string>
     <string name="enter_valid_input">Введите корректное число</string>
     <string name="delete_favorite_item">Удалить избранное</string>
     <string name="title_activity_settings">Настройки</string>
