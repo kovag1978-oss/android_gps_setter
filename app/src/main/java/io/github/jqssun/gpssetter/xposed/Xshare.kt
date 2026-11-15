@@ -58,6 +58,13 @@ class Xshare {
         false
     )
 
+    val randomPositionRadius: Double
+        get() = pref().getString("random_position_radius", "0.5")
+            ?.toDoubleOrNull()
+            ?.takeIf { it.isFinite() }
+            ?.coerceIn(0.5, 50.0)
+            ?: 0.5
+
     val accuracy : String?
     get() = pref().getString("accuracy_level","10")
 

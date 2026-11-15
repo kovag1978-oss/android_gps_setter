@@ -22,6 +22,7 @@ class VoiceCommandTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val voiceCommandIntent = Intent(this, VoiceCommandActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val voiceCommandPendingIntent = PendingIntent.getActivity(
                 this,

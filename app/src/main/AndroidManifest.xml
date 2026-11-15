@@ -48,6 +48,8 @@
         <activity
             android:name=".ui.VoiceCommandActivity"
             android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
             android:theme="@style/Theme.GPSSetter.VoiceCommand" />
         <activity
             android:name=".ui.VoiceTilePreferencesActivity"

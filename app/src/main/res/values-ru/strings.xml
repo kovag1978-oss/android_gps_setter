@@ -105,10 +105,10 @@
     <string name="advanced_hook">Подмена системного местоположения</string>
     <string name="advanced_summary">Подменяет координаты на уровне Android, а не только в выбранных приложениях; может повлиять на приложения, использующие данные GNSS. В LSPosed включите Android System и перезагрузите устройство.</string>
     <string name="random_position">Случайное местоположение</string>
-    <string name="random_position_summary">Использовать случайное местоположение рядом с заданным</string>
+    <string name="random_position_summary">Случайное смещение в пределах заданного радиуса от выбранной точки</string>
     <string name="random_position_radius">Радиус</string>
-    <string name="random_position_radius_summary">До %1$s м от заданного местоположения</string>
-    <string name="random_position_radius_invalid">Укажите радиус от 0,5 до 10 метров.</string>
+    <string name="random_position_radius_summary">В пределах %1$s м от заданного местоположения</string>
+    <string name="random_position_radius_invalid">Укажите радиус от 0,5 до 50 метров.</string>
     <string name="drawer_open">Открыть</string>
     <string name="drawer_close">Закрыть</string>
     <string name="dark_theme">Тёмная тема</string>

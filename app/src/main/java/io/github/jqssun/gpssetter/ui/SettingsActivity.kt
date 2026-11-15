@@ -86,6 +86,7 @@ class ActivitySettings : AppCompatActivity() {
         override fun getString(key: String?, defValue: String?): String? {
             return when (key) {
                 "accuracy_level" -> PrefManager.accuracy
+                "random_position_radius" -> PrefManager.randomPositionRadius
                 "map_type" -> PrefManager.mapType.toString()
                 "dark_theme" -> PrefManager.darkTheme.toString()
                 "app_language" -> AppCompatDelegate.getApplicationLocales().toLanguageTags()
@@ -97,6 +98,7 @@ class ActivitySettings : AppCompatActivity() {
         override fun putString(key: String?, value: String?) {
             return when (key) {
                 "accuracy_level" -> PrefManager.accuracy = value
+                "random_position_radius" -> PrefManager.randomPositionRadius = value
                 "map_type" -> PrefManager.mapType = value!!.toInt()
                 "dark_theme" -> PrefManager.darkTheme = value!!.toInt()
                 "app_language" -> {
@@ -328,6 +330,40 @@ class ActivitySettings : AppCompatActivity() {
                 }
             }
 
+            findPreference<EditTextPreference>("random_position_radius")?.let {
+                it.summary = getString(
+                    R.string.random_position_radius_summary,
+                    PrefManager.randomPositionRadius.orEmpty()
+                )
+                it.setOnBindEditTextListener { editText ->
+                    editText.inputType =
+                        InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+                    editText.keyListener = DigitsKeyListener.getInstance("0123456789.,")
+                    editText.addTextChangedListener(getCommaReplacerTextWatcher(editText))
+                }
+                it.setOnPreferenceChangeListener { preference, newValue ->
+                    val radius = (newValue as? String)
+                        ?.replace(',', '.')
+                        ?.toDoubleOrNull()
+                    if (radius == null ||
+                        radius !in MIN_RANDOM_POSITION_RADIUS..MAX_RANDOM_POSITION_RADIUS
+                    ) {
+                        Toast.makeText(
+                            requireContext(),
+                            getString(R.string.random_position_radius_invalid),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        false
+                    } else {
+                        preference.summary = getString(
+                            R.string.random_position_radius_summary,
+                            radius.toString()
+                        )
+                        true
+                    }
+                }
+            }
+
             findPreference<DropDownPreference>("dark_theme")?.setOnPreferenceChangeListener { _, newValue ->
                 val newMode = (newValue as String).toInt()
                 if (PrefManager.darkTheme != newMode) {
@@ -523,6 +559,8 @@ class ActivitySettings : AppCompatActivity() {
             const val STATE_PENDING_UPDATE_URL = "pending_update_url"
             const val STATE_PENDING_UPDATE_NAME = "pending_update_name"
             const val STATE_PENDING_UPDATE_CHANGELOG = "pending_update_changelog"
+            const val MIN_RANDOM_POSITION_RADIUS = 0.5
+            const val MAX_RANDOM_POSITION_RADIUS = 50.0
         }
 
         private fun getCommaReplacerTextWatcher(editText: EditText): TextWatcher {

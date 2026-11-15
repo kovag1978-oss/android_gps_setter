@@ -116,10 +116,10 @@
     <string name="advanced_hook">Hook system location</string>
     <string name="advanced_summary">Spoofs location at the Android system level, not only in selected apps; apps using GNSS data may be affected. Enable Android System in LSPosed and reboot the device.</string>
     <string name="random_position">Random location</string>
-    <string name="random_position_summary">Use a random location around the set location</string>
+    <string name="random_position_summary">Randomize location within the configured radius of the set location</string>
     <string name="random_position_radius">Radius</string>
-    <string name="random_position_radius_summary">Up to %1$s m from the set location</string>
-    <string name="random_position_radius_invalid">Enter a radius from 0.5 to 10 meters.</string>
+    <string name="random_position_radius_summary">Within %1$s m of the set location</string>
+    <string name="random_position_radius_invalid">Enter a radius from 0.5 to 50 meters.</string>
     <string name="drawer_open">Open</string>
     <string name="drawer_close">Close</string>
     <string name="dark_theme">Dark theme</string>

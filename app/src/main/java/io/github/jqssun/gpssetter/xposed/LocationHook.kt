@@ -18,13 +18,19 @@ import io.github.jqssun.gpssetter.BuildConfig
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import timber.log.Timber
 import java.util.*
+import kotlin.math.asin
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.round
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 object LocationHook {
 
     var newlat: Double = 45.0000
     var newlng: Double = 0.0000
     private const val pi = 3.14159265359
+    private const val COORDINATE_SCALE = 10_000_000.0
     private var accuracy: Float = 0.0f
     private val rand: Random = Random()
     private const val earth = 6378137.0
@@ -39,14 +45,28 @@ object LocationHook {
     private fun updateLocation(latitude: Double = settings.getLat, longitude: Double = settings.getLng) {
         try {
             mLastUpdated = System.currentTimeMillis()
-            val x = (rand.nextInt(50) - 15).toDouble()
-            val y = (rand.nextInt(50) - 15).toDouble()
-            val dlat = x / earth
-            val dlng = y / (earth * cos(pi * latitude / 180.0))
-            newlat =
-                if (settings.isRandomPosition) latitude + (dlat * 180.0 / pi) else latitude
-            newlng =
-                if (settings.isRandomPosition) longitude + (dlng * 180.0 / pi) else longitude
+            if (settings.isRandomPosition) {
+                val distance = sqrt(rand.nextDouble()) * settings.randomPositionRadius
+                val bearing = rand.nextDouble() * 2.0 * pi
+                val angularDistance = distance / earth
+                val latitudeRadians = Math.toRadians(latitude)
+                val longitudeRadians = Math.toRadians(longitude)
+                val offsetLatitude = asin(
+                    sin(latitudeRadians) * cos(angularDistance) +
+                        cos(latitudeRadians) * sin(angularDistance) * cos(bearing)
+                )
+                val offsetLongitude = longitudeRadians + atan2(
+                    sin(bearing) * sin(angularDistance) * cos(latitudeRadians),
+                    cos(angularDistance) - sin(latitudeRadians) * sin(offsetLatitude)
+                )
+                newlat = Math.toDegrees(offsetLatitude)
+                newlng = (Math.toDegrees(offsetLongitude) + 540.0) % 360.0 - 180.0
+            } else {
+                newlat = latitude
+                newlng = longitude
+            }
+            newlat = round(newlat * COORDINATE_SCALE) / COORDINATE_SCALE
+            newlng = round(newlng * COORDINATE_SCALE) / COORDINATE_SCALE
             accuracy = settings.accuracy!!.toFloat()
 
         } catch (e: Exception) {

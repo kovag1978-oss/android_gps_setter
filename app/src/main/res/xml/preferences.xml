@@ -96,6 +96,15 @@
             android:widgetLayout="@layout/preference_switch_widget"
         />
 
+        <EditTextPreference
+            android:defaultValue="0.5"
+            android:dependency="random_position"
+            android:digits="0123456789.,"
+            android:key="random_position_radius"
+            android:selectAllOnFocus="true"
+            android:title="@string/random_position_radius"
+            android:summary="@string/random_position_radius_summary" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>
