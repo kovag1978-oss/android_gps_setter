@@ -60,8 +60,8 @@ jobs:
           set -euo pipefail
           test -n "$STORE"
           test -n "$LOCAL"
-          trap 'rm -f upload.jks signing.properties' EXIT
-          printf '%s' "$STORE" | base64 --decode > upload.jks
+          trap 'rm -f app/upload.jks signing.properties' EXIT
+          printf '%s' "$STORE" | base64 --decode > app/upload.jks
           printf '%s' "$LOCAL" | base64 --decode > signing.properties
           chmod +x ./gradlew;
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
