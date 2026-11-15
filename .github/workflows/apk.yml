@@ -3,6 +3,9 @@
 
 name: Generate APK
 
+permissions:
+  contents: write
+
 env:
   main_project_module: app
   target_owner: Xposed-Modules-Repo
