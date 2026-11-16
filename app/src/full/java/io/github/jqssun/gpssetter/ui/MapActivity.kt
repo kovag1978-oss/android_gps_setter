@@ -195,6 +195,17 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
             }
         }
     }
+    override fun currentMapPoint(): MapPoint =
+        mMap.cameraPosition.target.let { MapPoint(it.latitude, it.longitude) }
+
+    override fun moveFlightCamera(point: MapPoint, zoom: Double) {
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), zoom.toFloat()))
+    }
+
+    override fun setSelectedMapPoint(point: MapPoint) {
+        mLatLng = LatLng(point.latitude, point.longitude)
+    }
+    override fun clearSelectedMapMarker() = removeMarker()
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
         with(mMap){
@@ -203,7 +214,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
             // gms custom ui
             if (ActivityCompat.checkSelfPermission(this@MapActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) { 
                 setMyLocationEnabled(true); 
-            } else {
+            } else if (!isTemporaryPreview) {
                 ActivityCompat.requestPermissions(this@MapActivity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 99);
             }
             setTrafficEnabled(true)
@@ -240,6 +251,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
                 if (spiderExpanded) clearSpider()
                 refreshActiveLocations(getActiveMapLocations())
             }
+            onMapInitialized()
             if (viewModel.isStarted){
                 mMarker?.let {
                     // TODO:
@@ -287,10 +299,9 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
                 mLatLng?.let(::updateMarker)
                 return@setOnClickListener
             }
+            val previous = activeLocationForTargets(setOf(SYSTEM_TARGET)) ?: trackedRealLocation()
             viewModel.update(true, lat, lon)
-            mLatLng.let {
-                updateMarker(it!!)
-            }
+            showAppliedLocation(lat, lon, previous)
             binding.startButton.visibility = View.GONE
             binding.stopButton.visibility = View.VISIBLE
             val favoriteName = selectedFavoriteName
@@ -314,6 +325,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
             if (showRunningManagedLocationChoice { removeMarker() }) {
                 return@setOnClickListener
             }
+            val previous = activeLocationForTargets(setOf(SYSTEM_TARGET))
             mLatLng.let {
                 viewModel.update(false, it!!.latitude, it.longitude)
             }
@@ -322,6 +334,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, GoogleMap.OnMapClickLi
             binding.startButton.visibility = View.VISIBLE
             cancelNotification()
             showToast(getString(R.string.location_unset))
+            showStoppedLocation(previous)
         }
     }
 }

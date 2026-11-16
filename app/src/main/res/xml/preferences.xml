@@ -41,6 +41,14 @@
 
     <PreferenceCategory android:title="@string/voice_control_category">
 
+        <DropDownPreference
+            android:title="@string/voice_recognition_mode"
+            android:summary="%s"
+            android:key="voice_recognition_mode"
+            android:defaultValue="regular"
+            android:entries="@array/voice_recognition_mode_names"
+            android:entryValues="@array/voice_recognition_mode_values" />
+
         <SwitchPreferenceCompat
             android:title="@string/voice_quick_tile"
             android:summary="@string/voice_quick_tile_summary"

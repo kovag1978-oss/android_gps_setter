@@ -26,6 +26,8 @@ import timber.log.Timber
 
 class VoiceCommandResultReceiver : BroadcastReceiver() {
 
+    private var mapResult: MapCommandResult? = null
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_PROCESS_RESULTS) return
 
@@ -48,7 +50,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         context: Context,
         recognizedPhrases: List<String>,
         startNextRecognition: suspend () -> Unit
-    ) {
+    ): MapCommandResult? {
         try {
             val phrases = recognizedPhrases
                 .map(VoiceCommandText::normalize)
@@ -56,13 +58,15 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
 
             if (phrases.isEmpty()) {
                 showMessage(context, R.string.voice_no_matches)
-                return
+                return null
             }
 
             if (PrefManager.isSeparateControlEnabled) {
                 val target = PrefManager.pendingVoiceTarget
                 if (target == null) {
-                    if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
+                    if (VoiceCommandText.containsSystemCommand(phrases, VoiceCommandText.systemCommand(context))) {
+                        selectSystemTarget(context, startNextRecognition)
+                    } else if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
                         stopAllSpoofing(context)
                     } else if (!applyFavoriteToAllManagedApps(context, phrases)) {
                         selectTarget(context, phrases, startNextRecognition)
@@ -81,6 +85,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
             PrefManager.pendingVoiceTarget = null
             showMessage(context, R.string.voice_command_failed)
         }
+        return mapResult
     }
 
     private suspend fun applyFavoriteToAllManagedApps(
@@ -103,15 +108,14 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
             ?: return false
 
         val profiles = PrefManager.appLocationProfiles.filter { it.enabled }
-        if (profiles.isEmpty()) {
-            showMessage(context, R.string.no_managed_apps_enabled)
-            return true
-        }
-
         val latitude = requireNotNull(favorite.lat)
         val longitude = requireNotNull(favorite.lng)
-        PrefManager.setAppLocations(profiles.map { it.packageName }.toSet(), latitude, longitude)
+        val targets = profiles.map { it.packageName }.toSet()
+        val previous = activeLocationForTargets(targets + SYSTEM_TARGET)
+        PrefManager.applyLocations(targets, true, latitude, longitude)
+        mapResult = MapCommandResult.Applied(latitude, longitude, previous)
         PrefManager.pendingVoiceTarget = null
+        showActiveLocationNotification(context, favorite.address.orEmpty())
         profiles.forEach { profile ->
             showActiveLocationNotification(
                 context,
@@ -122,6 +126,19 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         VoiceCommandTileService.requestStateUpdate(context)
         showMessage(context, R.string.voice_location_set, favorite.address.orEmpty())
         return true
+    }
+
+    private suspend fun selectSystemTarget(context: Context, startNextRecognition: suspend () -> Unit) {
+        PrefManager.pendingVoiceTarget = SYSTEM_TARGET
+        if (PrefManager.appLocationProfiles.any {
+                it.enabled && VoiceCommandText.normalize(it.voiceCommand) == VoiceCommandText.systemCommand(context)
+            }) {
+            showMessage(context, R.string.app_voice_system_conflict)
+        }
+        showMessage(context, R.string.voice_target_selected, context.getString(R.string.voice_system_target),
+            context.getString(R.string.voice_stop_command))
+        delay(SECOND_STEP_DELAY_MILLIS)
+        startNextRecognition()
     }
 
     private suspend fun selectTarget(
@@ -161,6 +178,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         startNextRecognition: suspend () -> Unit
     ) {
         if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
+            val previous = activeLocationForTargets(setOf(target))
             if (target == SYSTEM_TARGET) {
                 disableGlobalSpoofing(context)
             } else {
@@ -170,6 +188,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
                 updateTileAndNotification(context)
             }
             showMessage(context, R.string.voice_location_stopped)
+            mapResult = MapCommandResult.Stopped(previous)
             return
         }
 
@@ -204,8 +223,9 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
                 }
             }
 
+            val previous = activeLocationForTargets(setOf(target))
             if (appProfile == null) {
-                PrefManager.update(start = true, la = latitude, ln = longitude)
+                PrefManager.applyLocations(emptySet(), true, latitude, longitude)
                 PrefManager.pendingVoiceTarget = null
                 showActiveLocationNotification(context, favorite.address.orEmpty())
             } else {
@@ -218,6 +238,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
                 )
             }
             VoiceCommandTileService.requestStateUpdate(context)
+            mapResult = MapCommandResult.Applied(latitude, longitude, previous)
             showMessage(context, R.string.voice_location_set, favorite.address.orEmpty())
             return
         }
@@ -232,8 +253,10 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         startNextRecognition: suspend () -> Unit
     ) {
         if (phrases.any { it in VoiceCommandText.stopCommands(context) }) {
+            val previous = activeLocationForTargets(setOf(SYSTEM_TARGET))
             disableGlobalSpoofing(context)
             showMessage(context, R.string.voice_location_stopped)
+            mapResult = MapCommandResult.Stopped(previous)
             return
         }
 
@@ -255,9 +278,11 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
             val latitude = favorite.lat ?: continue
             val longitude = favorite.lng ?: continue
 
+            val previous = activeLocationForTargets(setOf(SYSTEM_TARGET))
             PrefManager.update(start = true, la = latitude, ln = longitude)
             showActiveLocationNotification(context, favorite.address.orEmpty())
             VoiceCommandTileService.requestStateUpdate(context)
+            mapResult = MapCommandResult.Applied(latitude, longitude, previous)
             showMessage(context, R.string.voice_location_set, favorite.address.orEmpty())
             return
         }
@@ -275,6 +300,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
 
     private suspend fun stopAllSpoofing(context: Context) {
         val notifications = NotificationsChannel()
+        val previous = activeLocationForTargets(allActiveTargets())
         PrefManager.update(start = false, la = PrefManager.getLat, ln = PrefManager.getLng)
         PrefManager.appLocationProfiles
             .filter { it.started }
@@ -283,6 +309,7 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
         PrefManager.pendingVoiceTarget = null
         notifications.cancelLocationNotification(context)
         updateTileAndNotification(context)
+        mapResult = MapCommandResult.Stopped(previous)
         showMessage(context, R.string.all_locations_stopped)
     }
 
@@ -344,8 +371,8 @@ class VoiceCommandResultReceiver : BroadcastReceiver() {
             context: Context,
             recognizedPhrases: List<String>,
             startNextRecognition: suspend () -> Unit
-        ) {
-            VoiceCommandResultReceiver().processRecognizedPhrases(
+        ): MapCommandResult? {
+            return VoiceCommandResultReceiver().processRecognizedPhrases(
                 context,
                 recognizedPhrases,
                 startNextRecognition

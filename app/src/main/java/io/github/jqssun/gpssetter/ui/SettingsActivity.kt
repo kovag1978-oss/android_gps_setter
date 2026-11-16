@@ -89,6 +89,7 @@ class ActivitySettings : AppCompatActivity() {
                 "random_position_radius" -> PrefManager.randomPositionRadius
                 "map_type" -> PrefManager.mapType.toString()
                 "dark_theme" -> PrefManager.darkTheme.toString()
+                "voice_recognition_mode" -> PrefManager.voiceRecognitionMode.value
                 "app_language" -> AppCompatDelegate.getApplicationLocales().toLanguageTags()
                     .ifEmpty { "system" }
                 else -> throw IllegalArgumentException("Invalid key $key")
@@ -101,6 +102,10 @@ class ActivitySettings : AppCompatActivity() {
                 "random_position_radius" -> PrefManager.randomPositionRadius = value
                 "map_type" -> PrefManager.mapType = value!!.toInt()
                 "dark_theme" -> PrefManager.darkTheme = value!!.toInt()
+                "voice_recognition_mode" -> PrefManager.voiceRecognitionMode =
+                    io.github.jqssun.gpssetter.utils.VoiceRecognitionMode.fromValue(
+                        requireNotNull(value)
+                    )
                 "app_language" -> {
                     val languageTags = when (value) {
                         "system" -> ""

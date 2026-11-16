@@ -69,8 +69,11 @@ class AppProfilesActivity : AppCompatActivity() {
                     dialogTitle = getString(R.string.app_voice_command)
                     dialogMessage = getString(R.string.app_voice_command_summary)
                     setText(profile.voiceCommand)
-                    summary = profile.voiceCommand.ifBlank {
-                        getString(R.string.app_voice_command_summary)
+                    summary = when {
+                        profile.voiceCommand.isBlank() -> getString(R.string.app_voice_command_summary)
+                        VoiceCommandText.normalize(profile.voiceCommand) == VoiceCommandText.systemCommand(requireContext()) ->
+                            getString(R.string.app_voice_system_conflict)
+                        else -> profile.voiceCommand
                     }
                     setOnPreferenceChangeListener { preference, newValue ->
                         val command = newValue.toString().trim()

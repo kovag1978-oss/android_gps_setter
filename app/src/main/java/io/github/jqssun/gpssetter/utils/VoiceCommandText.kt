@@ -9,8 +9,14 @@ object VoiceCommandText {
     fun stopCommands(context: Context): Set<String> =
         setOf(normalize(context.getString(R.string.voice_stop_command)))
 
+    fun systemCommand(context: Context): String =
+        normalize(context.getString(R.string.voice_system_target))
+
     fun isReservedCommand(value: String, context: Context): Boolean =
-        normalize(value) in stopCommands(context)
+        normalize(value) in stopCommands(context) || normalize(value) == systemCommand(context)
+
+    fun containsSystemCommand(phrases: List<String>, systemCommand: String): Boolean =
+        phrases.any { it.containsPhrase(systemCommand) }
 
     fun normalize(value: String): String =
         Normalizer.normalize(value, Normalizer.Form.NFD)

@@ -49,13 +49,10 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
     private val spiderLines = mutableListOf<Polyline>()
     private var spiderExpanded = false
     private var appliedMapType: Int? = null
+    private var hasExplicitCameraTarget = false
 
     override fun hasMarker(): Boolean {
-        // TODO: if (!mMarker?.isVisible!!){
-        if (mMarker != null) {
-            return true
-        }
-        return false
+        return mMarker == null
     }
     private fun updateMarker(it: LatLng) {
         // TODO: mMarker?.isVisible = true
@@ -138,9 +135,10 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
                         .build()
                 )
                 locationComponent.isLocationComponentEnabled = true
-                locationComponent.cameraMode = CameraMode.TRACKING
+                locationComponent.cameraMode =
+                    if (hasExplicitCameraTarget) CameraMode.NONE else CameraMode.TRACKING
                 locationComponent.renderMode = RenderMode.COMPASS
-            } else {
+            } else if (!isTemporaryPreview) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 99)
             }
             refreshActiveLocations(getActiveMapLocations())
@@ -221,6 +219,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
         if (moveNewLocation) {
             mLatLng = LatLng(lat, lon)
             mLatLng.let { latLng ->
+                updateMarker(latLng!!)
                 // mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng!!, 12.0f.toDouble()))
                 mMap.animateCamera(CameraUpdateFactory.newCameraPosition(
                         CameraPosition.Builder()
@@ -239,6 +238,21 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
             }
         }
     }
+    override fun currentMapPoint(): MapPoint =
+        requireNotNull(mMap.cameraPosition.target).let { MapPoint(it.latitude, it.longitude) }
+
+    override fun moveFlightCamera(point: MapPoint, zoom: Double) {
+        hasExplicitCameraTarget = true
+        if (mMap.locationComponent.isLocationComponentActivated) {
+            mMap.locationComponent.cameraMode = CameraMode.NONE
+        }
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), zoom))
+    }
+
+    override fun setSelectedMapPoint(point: MapPoint) {
+        mLatLng = LatLng(point.latitude, point.longitude)
+    }
+    override fun clearSelectedMapMarker() = removeMarker()
     override fun onMapReady(mapLibreMap: MapLibreMap) {
         mMap = mapLibreMap
         with(mMap){
@@ -262,10 +276,9 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
             lon  = viewModel.getLng
             mLatLng = LatLng(lat, lon)
             mLatLng.let {
-                updateMarker(it!!)
                 // TODO: MarkerOptions().position(it!!)
                 // .draggable(false).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED).visible(false)
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(it, zoom.toDouble()))
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(it!!, zoom.toDouble()))
             }
 
             addOnMapClickListener(this@MapActivity)
@@ -282,6 +295,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
                 if (spiderExpanded) clearSpider()
                 refreshActiveLocations(getActiveMapLocations())
             }
+            onMapInitialized()
             if (viewModel.isStarted){
                 mMarker?.let {
                     // TODO:
@@ -294,16 +308,11 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
     }
     override fun onMapClick(latLng: LatLng): Boolean {
         mLatLng = latLng
-        mMarker?.let { marker ->
-            mLatLng.let {
-                // marker.isVisible = true
-                updateMarker(it!!)
-                mMap.animateCamera(CameraUpdateFactory.newLatLng(it))
-                lat = it.latitude
-                lon = it.longitude
-                clearSelectedFavorite()
-            }
-        }
+        updateMarker(latLng)
+        mMap.animateCamera(CameraUpdateFactory.newLatLng(latLng))
+        lat = latLng.latitude
+        lon = latLng.longitude
+        clearSelectedFavorite()
         return true
     }
 
@@ -332,10 +341,9 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
                 mLatLng?.let(::updateMarker)
                 return@setOnClickListener
             }
+            val previous = activeLocationForTargets(setOf(SYSTEM_TARGET)) ?: trackedRealLocation()
             viewModel.update(true, lat, lon)
-            mLatLng.let {
-                updateMarker(it!!)
-            }
+            showAppliedLocation(lat, lon, previous)
             binding.startButton.visibility = View.GONE
             binding.stopButton.visibility = View.VISIBLE
             val favoriteName = selectedFavoriteName
@@ -359,6 +367,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
             if (showRunningManagedLocationChoice { removeMarker() }) {
                 return@setOnClickListener
             }
+            val previous = activeLocationForTargets(setOf(SYSTEM_TARGET))
             mLatLng.let {
                 viewModel.update(false, it!!.latitude, it.longitude)
             }
@@ -367,6 +376,7 @@ class MapActivity: BaseMapActivity(), OnMapReadyCallback, MapLibreMap.OnMapClick
             binding.startButton.visibility = View.VISIBLE
             cancelNotification()
             showToast(getString(R.string.location_unset))
+            showStoppedLocation(previous)
         }
     }
 }

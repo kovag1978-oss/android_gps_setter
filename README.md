@@ -35,29 +35,40 @@ The current application ID is `io.github.kovag1978_oss.gpssetter`. Releases befo
 
 1. Open **Settings → Enable separate control** and select **Apps for separate control**.
 2. Assign each app a unique voice command and marker color, then enable its separate profile. Installed Google Play services and Google Services Framework are included in the selectable apps.
-3. Choose a location on the map or from favorites. Tap the apply button and choose an app or **All** to update every enabled profile.
+3. Choose a location on the map or from favorites. Tap the apply button and choose **System**, an app, or **All**. **All** updates the system and every enabled app profile, even if no profiles are enabled.
 4. When profiles are active, tap the separate stop button to choose one active profile or **All**. The system location target is listed when system spoofing is active. Long-press behavior is not used.
 
-Each active app profile has its own ongoing notification. Applying a new location to one app updates that app's notification; stopping it removes only its notification. **All** stops every app profile and system spoofing.
+Each active app profile has its own ongoing notification. Applying a new location to one app updates that app's notification; stopping it removes only its notification. **All** stops every app profile and system spoofing. Active system spoofing can also affect apps without an active separate profile, subject to the LSPosed scope and system hook.
 
 ## Voice control
 
-Enable the Quick Settings tile and/or the floating voice button in **Settings → Voice control**. The floating button requires permission to display over other apps. Add the GPS Setter tile to Android Quick Settings and tap it to open Android's speech recognizer; long-press the tile to show the floating button. GPS Setter itself does not need to be opened.
+Enable the Quick Settings tile and/or the floating voice button in **Settings → Voice control**. The floating button requires permission to display over other apps. Add the GPS Setter tile to Android Quick Settings and tap it to start speech recognition; long-press the tile to show the floating button. GPS Setter itself does not need to be opened.
+
+After a location change, the map animates a four-second flight from the previous point to the new one. After a successful voice command from another app, it then returns to the previous app; touch the map to stop the animation and keep it open. Stopping the last spoof requests a fresh device location; if it is unavailable, the app reports this and uses the map center. When other spoofed locations remain active, the flight ends at the system location or the first active app location.
+
+In **Settings → Voice control → Speech recognition mode**, choose **Regular**, **Offline**, or **Automatic**. Regular is the default for new users and may require internet. Automatic selects regular recognition when Android confirms internet access and offline recognition otherwise; the choice stays fixed through both steps of a command. An unvalidated connection is treated as offline. Existing users keep their previous regular or offline selection.
+
+Offline recognition requires Android 12 or later, an available on-device speech service, microphone permission, and an installed offline model for the app or device language. Download the language in the device or speech service settings before going offline; the exact steps depend on the device. If offline recognition is unavailable, the app shows an error rather than automatically using the network; you can switch to regular recognition in settings. Offline voice commands use saved favorites and do not provide offline maps or address search.
+
+The offline recognition window shows its current status and a microphone indicator that responds to sound when supported by the speech service. Its appearance can differ from the system's regular recognition window.
+
+When an app language is selected explicitly, offline recognition uses that language. On supported Android versions it prefers an installed regional model for that language. Models used by keyboard voice typing or another speech service may not be available to the system on-device recognizer.
 
 The floating button can be moved anywhere on screen. Its color follows the tile state (blue while location spoofing is active, gray otherwise). Hold it for one second to disable and dismiss it; a progress ring, vibration, and upward exit animation indicate when it has been disabled.
 
 - With separate control enabled, the first prompt lists the enabled apps' voice commands and saved favorites and is labeled **Step 1 of 2**.
-- Say a favorite name to apply that location to all enabled app profiles in one step, or say **“turn off”** to stop all system and app spoofing.
+- Say a favorite name to apply that location to the system and all enabled app profiles in one step, or say **“turn off”** to stop all system and app spoofing.
+- Say **“system”** to select the system, then say a favorite or **“turn off”** for that target. The system command takes precedence over a matching favorite or app command; rename any conflicting app command.
 - Say an app's voice command to select it. After a short pause, the recognizer starts **Step 2 of 2** and names the selected app; say a favorite to set its location or **“turn off”** to stop spoofing for that app.
 - With separate control disabled, say a favorite name to set the system location or **“turn off”** to stop system spoofing.
-- App voice commands must be unique and cannot be the localized stop command (**“turn off”** in English, **«выключить»** in Russian). Favorite names can be included in longer phrases. Unmatched or cancelled input leaves the current spoofing state unchanged.
+- App voice commands must be unique and cannot be the localized system or stop command (**“system”** and **“turn off”** in English, **«система»** and **«выключить»** in Russian). Favorite names can be included in longer phrases. Unmatched or cancelled input leaves the current spoofing state unchanged.
 
 The recognition prompt includes the configured app commands and saved favorite names. A long list may be truncated by the speech-recognition app.
 
 ## Map and active notifications
 
 - The map displays every active spoofed location: the system location and locations assigned to managed apps. Markers move when coordinates change and disappear when spoofing stops.
-- Managed-app marker colors are configured alongside each app's voice command. The system location marker uses its own color; the marker placed by tapping the map is black.
+- Managed-app marker colors are configured alongside each app's voice command. The system location marker uses its own color; the black marker indicates a pending selection and disappears when it is applied.
 - Nearby active markers are grouped into clusters with visible colored dots. Tap a cluster to spread its markers around the cluster center, with lines connecting them to their original locations; moving the map closes the spider layout and recalculates clusters.
 - Active location notifications are ongoing and cannot be dismissed with an ordinary swipe. A foreground service also runs while any system or app-specific spoofing is active. Android or the device manufacturer may still allow the user or system to stop the app or disable its notifications.
 

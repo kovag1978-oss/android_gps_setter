@@ -84,14 +84,16 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Added a configurable random-location radius from 0.5 to 50 m (default 0.5 m).
-            - Spoofed coordinates are rounded to seven decimal places.
-            - Voice control no longer brings the GPS Setter main screen to the foreground.
+            - Added regular, offline, and automatic voice recognition modes.
+            - Added system location control alongside separate app profiles.
+            - Added animated map flights, voice-command previews, and automatic return to the previous app.
+            - Improved map markers, voice prompts, and location-state handling.
 
             ## Изменения
-            - Добавлена настройка радиуса случайного местоположения от 0,5 до 50 м (по умолчанию 0,5 м).
-            - Подменяемые координаты округляются до семи знаков после запятой.
-            - Голосовое управление больше не выводит главный экран GPS Setter на передний план.
+            - Добавлены обычный, автономный и автоматический режимы распознавания речи.
+            - Добавлено управление системной подменой вместе с отдельными профилями приложений.
+            - Добавлены анимированные перелёты карты, показ результата голосовой команды и возврат к предыдущему приложению.
+            - Улучшены маркеры карты, голосовые подсказки и обработка состояния геолокации.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
@@ -106,14 +108,16 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Added a configurable random-location radius from 0.5 to 50 m (default 0.5 m).
-            - Spoofed coordinates are rounded to seven decimal places.
-            - Voice control no longer brings the GPS Setter main screen to the foreground.
+            - Added regular, offline, and automatic voice recognition modes.
+            - Added system location control alongside separate app profiles.
+            - Added animated map flights, voice-command previews, and automatic return to the previous app.
+            - Improved map markers, voice prompts, and location-state handling.
 
             ## Изменения
-            - Добавлена настройка радиуса случайного местоположения от 0,5 до 50 м (по умолчанию 0,5 м).
-            - Подменяемые координаты округляются до семи знаков после запятой.
-            - Голосовое управление больше не выводит главный экран GPS Setter на передний план.
+            - Добавлены обычный, автономный и автоматический режимы распознавания речи.
+            - Добавлено управление системной подменой вместе с отдельными профилями приложений.
+            - Добавлены анимированные перелёты карты, показ результата голосовой команды и возврат к предыдущему приложению.
+            - Улучшены маркеры карты, голосовые подсказки и обработка состояния геолокации.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
@@ -139,8 +143,10 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add README.md README.ru.md LICENSE SOURCE_URL SUMMARY
-          git commit --amend --no-edit
-          git push --force
+          if ! git diff --cached --quiet; then
+            git commit -m "Sync module metadata"
+            git push
+          fi
       
       # - name: Get latest release
       #   id: get_release

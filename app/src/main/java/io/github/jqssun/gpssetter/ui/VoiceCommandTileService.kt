@@ -6,11 +6,15 @@ import android.content.Intent
 import android.app.PendingIntent
 import android.os.Build
 import android.content.pm.PackageManager
+import android.content.res.Resources
+import android.icu.util.ULocale
 import android.speech.RecognizerIntent
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import androidx.appcompat.app.AppCompatDelegate
 import io.github.jqssun.gpssetter.R
 import io.github.jqssun.gpssetter.utils.PrefManager
+import java.util.Locale
 
 class VoiceCommandTileService : TileService() {
 
@@ -22,6 +26,7 @@ class VoiceCommandTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val voiceCommandIntent = Intent(this, VoiceCommandActivity::class.java)
+            .putExtra(VoiceCommandActivity.EXTRA_MAP_WAS_VISIBLE, BaseMapActivity.isMapVisible)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val voiceCommandPendingIntent = PendingIntent.getActivity(
@@ -70,7 +75,7 @@ class VoiceCommandTileService : TileService() {
             )
         }
 
-        fun createRecognitionIntent(context: android.content.Context): Intent {
+        fun createRecognitionIntent(context: android.content.Context, offline: Boolean = false): Intent {
             return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(
                     RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -85,16 +90,16 @@ class VoiceCommandTileService : TileService() {
                     else -> favoriteRecognitionPrompt(context)
                 }
                 putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, voiceLanguageTag())
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, voiceLanguageTag(offline))
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
             }
         }
 
         private fun targetRecognitionPrompt(context: android.content.Context): String {
-            val appCommands = PrefManager.appLocationProfiles
+            val appCommands = (listOf(context.getString(R.string.voice_system_target)) + PrefManager.appLocationProfiles
                 .filter { it.enabled }
                 .map { it.voiceCommand.trim() }
-                .filter(String::isNotEmpty)
+                .filter(String::isNotEmpty))
                 .distinct()
                 .joinToString()
                 .ifEmpty { context.getString(R.string.voice_no_app_commands) }
@@ -139,9 +144,27 @@ class VoiceCommandTileService : TileService() {
                 .mapNotNull { it.address?.trim()?.takeIf(String::isNotEmpty) }
                 .distinct()
 
-        private fun voiceLanguageTag(): String =
-            androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags()
-                .ifEmpty { java.util.Locale.getDefault().toLanguageTag() }
+        private fun voiceLanguageTag(offline: Boolean): String {
+            val appLocales = AppCompatDelegate.getApplicationLocales()
+            val appLocale = appLocales.get(0)
+            if (!offline || appLocale == null) {
+                return appLocales.toLanguageTags().ifEmpty { Locale.getDefault().toLanguageTag() }
+            }
+            if (appLocale.country.isNotEmpty()) return appLocale.toLanguageTag()
+            val systemLocale = Resources.getSystem().configuration.locales[0]
+            val country = if (systemLocale.language == appLocale.language &&
+                systemLocale.country.isNotEmpty()
+            ) {
+                systemLocale.country
+            } else {
+                ULocale.addLikelySubtags(ULocale.forLocale(appLocale)).country
+            }
+            return if (country.isNotEmpty()) {
+                Locale.Builder().setLocale(appLocale).setRegion(country).build().toLanguageTag()
+            } else {
+                appLocale.toLanguageTag()
+            }
+        }
 
         fun requestStateUpdate(context: android.content.Context) {
             requestListeningState(

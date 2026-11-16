@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingTop="24dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/voice_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityLiveRegion="polite"
+            android:gravity="center"
+            android:textAppearance="?attr/textAppearanceTitleLarge"
+            android:text="@string/voice_offline_preparing" />
+
+        <FrameLayout
+            android:layout_width="144dp"
+            android:layout_height="144dp"
+            android:layout_marginTop="8dp"
+            android:importantForAccessibility="no">
+
+            <View
+                android:id="@+id/voice_level"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:alpha="0.2"
+                android:background="@drawable/voice_microphone_circle" />
+
+            <ImageView
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:background="@drawable/voice_microphone_circle"
+                android:contentDescription="@null"
+                android:padding="20dp"
+                android:src="@drawable/ic_mic"
+                android:tint="?attr/colorOnPrimary" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/voice_prompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityLiveRegion="polite"
+            android:gravity="center"
+            android:textAppearance="?attr/textAppearanceBodyLarge" />
+    </LinearLayout>
+</ScrollView>

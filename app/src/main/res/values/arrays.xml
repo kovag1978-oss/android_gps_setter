@@ -74,4 +74,16 @@
         <item>en</item>
     </string-array>
 
+    <string-array name="voice_recognition_mode_names">
+        <item>@string/voice_recognition_regular</item>
+        <item>@string/voice_recognition_offline</item>
+        <item>@string/voice_recognition_automatic</item>
+    </string-array>
+
+    <string-array name="voice_recognition_mode_values" translatable="false">
+        <item>regular</item>
+        <item>offline</item>
+        <item>automatic</item>
+    </string-array>
+
 </resources>

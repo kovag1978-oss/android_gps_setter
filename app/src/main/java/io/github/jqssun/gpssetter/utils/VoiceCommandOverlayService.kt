@@ -236,6 +236,10 @@ class VoiceCommandOverlayService : Service() {
                     } else if (!isLongPressTriggered) {
                         startActivity(
                             Intent(this@VoiceCommandOverlayService, VoiceCommandActivity::class.java)
+                                .putExtra(
+                                    VoiceCommandActivity.EXTRA_MAP_WAS_VISIBLE,
+                                    io.github.jqssun.gpssetter.ui.BaseMapActivity.isMapVisible
+                                )
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         )
                     }

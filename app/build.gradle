@@ -7,7 +7,7 @@ plugins {
     id 'com.google.devtools.ksp'
 }
 
-def tagName = '0.0.18'
+def tagName = '0.0.19'
 def localSigningPropertiesFile = new File("C:/signing.properties")
 def userSigningPropertiesFile = new File(System.getProperty("user.home"), "gpssetter-signing/signing.properties")
 def signingPropertiesFile = [localSigningPropertiesFile, userSigningPropertiesFile, rootProject.file("signing.properties")]
@@ -25,7 +25,7 @@ android {
         applicationId "io.github.kovag1978_oss.gpssetter"
         minSdk 27
         targetSdk 34
-        versionCode 18
+        versionCode 19
         versionName tagName
         // testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "TAG_NAME", "\"${tagName}\"")
@@ -96,6 +96,8 @@ android {
 }
 
 dependencies {
+
+    testImplementation 'junit:junit:4.13.2'
 
     // temporary foss xposed fix from https://github.com/deltazefiro/Amarok-Hider/issues/160
     // compileOnly 'de.robv.android.xposed:api:82'

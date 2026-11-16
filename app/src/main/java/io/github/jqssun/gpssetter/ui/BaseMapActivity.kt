@@ -2,6 +2,7 @@ package io.github.jqssun.gpssetter.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -11,12 +12,15 @@ import android.graphics.PointF
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
+import android.view.MotionEvent
 import android.view.View
 import android.widget.RelativeLayout
 import android.view.inputmethod.EditorInfo
@@ -57,7 +61,9 @@ import kotlinx.coroutines.flow.callbackFlow
 import java.io.IOException
 import java.util.regex.Matcher
 import java.util.regex.Pattern
+import kotlin.coroutines.resume
 import kotlin.properties.Delegates
+import timber.log.Timber
 
 @AndroidEntryPoint
 abstract class BaseMapActivity: AppCompatActivity() {
@@ -107,6 +113,12 @@ abstract class BaseMapActivity: AppCompatActivity() {
     protected abstract fun refreshActiveLocations(locations: List<ActiveMapLocation>)
     protected abstract fun setupButtons()
     protected abstract fun moveMapToNewLocation(moveNewLocation: Boolean)
+    protected abstract fun currentMapPoint(): MapPoint
+    protected abstract fun moveFlightCamera(point: MapPoint, zoom: Double)
+    protected abstract fun setSelectedMapPoint(point: MapPoint)
+    protected abstract fun clearSelectedMapMarker()
+
+    protected data class MapPoint(val latitude: Double, val longitude: Double)
 
     protected data class ActiveMapLocation(
         val title: String,
@@ -116,9 +128,38 @@ abstract class BaseMapActivity: AppCompatActivity() {
     )
 
     private var unregisterActiveLocationListener: (() -> Unit)? = null
+    private var mapReady = false
+    private var pendingMapResult: MapCommandResult? = null
+    private var locationJob: Job? = null
+    private var previewJob: Job? = null
+    private var flightAnimator: ValueAnimator? = null
+    private var flightFrom: MapPoint? = null
+    private var flightTo: MapPoint? = null
+    private var flightStartedAt = 0L
+    private var restoreFlight = false
+    private var activeResult: MapCommandResult? = null
+    private var preview = false
+    private var previewDeadline = 0L
+    private val realLocationTracker by lazy { RealLocationTracker(this) }
+    protected val isTemporaryPreview: Boolean get() = preview
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        preview = savedInstanceState?.getBoolean(STATE_PREVIEW)
+            ?: intent.getBooleanExtra(EXTRA_PREVIEW, false)
+        previewDeadline = savedInstanceState?.getLong(STATE_PREVIEW_DEADLINE) ?: 0L
+        if (savedInstanceState == null) {
+            readMapResult(intent)
+        } else {
+            val savedIntent = savedInstanceState.getParcelable<Intent>(STATE_RESULT)
+            if (savedIntent != null) readMapResult(savedIntent)
+            if (savedInstanceState.getBoolean(STATE_FLIGHT)) {
+                flightFrom = MapPoint(savedInstanceState.getDouble(STATE_FROM_LAT), savedInstanceState.getDouble(STATE_FROM_LON))
+                flightTo = MapPoint(savedInstanceState.getDouble(STATE_TO_LAT), savedInstanceState.getDouble(STATE_TO_LON))
+                flightStartedAt = savedInstanceState.getLong(STATE_FLIGHT_START)
+                restoreFlight = true
+            }
+        }
         enableEdgeToEdge(navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -127,19 +168,35 @@ abstract class BaseMapActivity: AppCompatActivity() {
         }
         setSupportActionBar(binding.toolbar)
         initializeMap()
-        checkModuleEnabled()
+        if (!preview) checkModuleEnabled()
         setupNavView()
         setupButtons()
         setupDrawer()
-        requestNotificationsPermissionIfNeeded()
+        if (!preview) requestNotificationsPermissionIfNeeded()
         if (PrefManager.isJoystickEnabled){
             startService(Intent(this, JoystickService::class.java))
         }
-        promptRestartAfterAppUpdate()
+        if (!preview) promptRestartAfterAppUpdate()
+        if (savedInstanceState != null && preview && previewDeadline != 0L &&
+            pendingMapResult == null && !restoreFlight
+        ) {
+            startPreviewTimer()
+        }
+        if (preview) {
+            lifecycleScope.launch {
+                delay(15_000L)
+                if (preview && !mapReady) {
+                    showToast(getString(R.string.map_preview_unavailable))
+                    startPreviewTimer()
+                }
+            }
+        }
     }
 
     override fun onStart() {
         super.onStart()
+        realLocationTracker.start()
+        visibleMapCount++
         unregisterActiveLocationListener = PrefManager.registerActiveLocationChangeListener {
             runOnUiThread {
                 if (!isFinishing && !isDestroyed) {
@@ -150,9 +207,278 @@ abstract class BaseMapActivity: AppCompatActivity() {
     }
 
     override fun onStop() {
+        visibleMapCount--
+        realLocationTracker.stop()
+        flightAnimator?.cancel()
+        locationJob?.cancel()
+        if (!isChangingConfigurations) {
+            preview = false
+            previewJob?.cancel()
+        }
         unregisterActiveLocationListener?.invoke()
         unregisterActiveLocationListener = null
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        realLocationTracker.stop()
+        super.onDestroy()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(STATE_PREVIEW, preview)
+        outState.putLong(STATE_PREVIEW_DEADLINE, previewDeadline)
+        val result = pendingMapResult ?: activeResult
+        if (result != null && (pendingMapResult != null || flightAnimator?.isRunning == true || locationJob?.isActive == true)) {
+            outState.putParcelable(STATE_RESULT, mapResultIntent(result))
+        }
+        if (flightAnimator?.isRunning == true) {
+            val from = flightFrom
+            val to = flightTo
+            if (from != null && to != null) {
+                outState.putBoolean(STATE_FLIGHT, true)
+                outState.putDouble(STATE_FROM_LAT, from.latitude)
+                outState.putDouble(STATE_FROM_LON, from.longitude)
+                outState.putDouble(STATE_TO_LAT, to.latitude)
+                outState.putDouble(STATE_TO_LON, to.longitude)
+                outState.putLong(STATE_FLIGHT_START, flightStartedAt)
+            }
+        }
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        previewJob?.cancel()
+        flightAnimator?.cancel()
+        locationJob?.cancel()
+        preview = intent.getBooleanExtra(EXTRA_PREVIEW, false)
+        previewDeadline = 0L
+        readMapResult(intent)
+        applyPendingMapResult()
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            locationJob?.cancel()
+            flightAnimator?.cancel()
+            if (preview) {
+                preview = false
+                previewJob?.cancel()
+            }
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
+    private fun readMapResult(intent: Intent) {
+        val previous = if (intent.hasExtra(EXTRA_PREVIOUS_LATITUDE) && intent.hasExtra(EXTRA_PREVIOUS_LONGITUDE)) {
+            MapCoordinates(intent.getDoubleExtra(EXTRA_PREVIOUS_LATITUDE, 0.0), intent.getDoubleExtra(EXTRA_PREVIOUS_LONGITUDE, 0.0))
+        } else null
+        pendingMapResult = when {
+            intent.getBooleanExtra(EXTRA_STOPPED, false) -> MapCommandResult.Stopped(previous)
+            intent.hasExtra(EXTRA_LATITUDE) && intent.hasExtra(EXTRA_LONGITUDE) ->
+                MapCommandResult.Applied(
+                    intent.getDoubleExtra(EXTRA_LATITUDE, 0.0),
+                    intent.getDoubleExtra(EXTRA_LONGITUDE, 0.0),
+                    previous
+                )
+            else -> null
+        }
+    }
+
+    private fun mapResultIntent(result: MapCommandResult): Intent = Intent().apply {
+        result.previous?.let {
+            putExtra(EXTRA_PREVIOUS_LATITUDE, it.latitude)
+            putExtra(EXTRA_PREVIOUS_LONGITUDE, it.longitude)
+        }
+        when (result) {
+            is MapCommandResult.Applied -> {
+                putExtra(EXTRA_LATITUDE, result.latitude)
+                putExtra(EXTRA_LONGITUDE, result.longitude)
+            }
+            is MapCommandResult.Stopped -> putExtra(EXTRA_STOPPED, true)
+        }
+    }
+
+    protected fun onMapInitialized() {
+        mapReady = true
+        findViewById<View>(R.id.map).doOnLayout {
+            if (restoreFlight) {
+                restoreFlight = false
+                val result = pendingMapResult
+                if (result is MapCommandResult.Applied) {
+                    lat = result.latitude
+                    lon = result.longitude
+                    setSelectedMapPoint(MapPoint(lat, lon))
+                    clearSelectedMapMarker()
+                }
+                activeResult = result
+                pendingMapResult = null
+                startFlight(requireNotNull(flightFrom), requireNotNull(flightTo), flightStartedAt)
+            } else {
+                applyPendingMapResult()
+            }
+        }
+    }
+
+    private fun applyPendingMapResult() {
+        if (!mapReady || !ViewCompat.isLaidOut(findViewById(R.id.map))) return
+        val result = pendingMapResult ?: return
+        pendingMapResult = null
+        activeResult = result
+        locationJob?.cancel()
+        flightAnimator?.cancel()
+        val fallback = currentMapPoint()
+        val remaining = getActiveMapLocations()
+            .map { MapCoordinates(it.latitude, it.longitude) }
+        when (val focus = mapFocusFor(result, remaining)) {
+            is MapFocus.Applied -> {
+                lat = focus.point.latitude
+                lon = focus.point.longitude
+                setSelectedMapPoint(MapPoint(lat, lon))
+                clearSelectedMapMarker()
+                val destination = MapPoint(lat, lon)
+                val previous = result.previous
+                if (previous != null) {
+                    startFlight(MapPoint(previous.latitude, previous.longitude), destination)
+                } else {
+                    resolveRealLocation { real ->
+                        startFlight(real ?: fallback, destination)
+                    }
+                }
+            }
+            is MapFocus.Remaining -> {
+                val destination = focus.points.first().let { MapPoint(it.latitude, it.longitude) }
+                val source = result.previous?.let { MapPoint(it.latitude, it.longitude) } ?: fallback
+                startFlight(source, destination)
+            }
+            MapFocus.RealLocation -> resolveRealLocation { real ->
+                if (real == null) showToast(getString(R.string.real_location_unavailable))
+                val source = result.previous?.let { MapPoint(it.latitude, it.longitude) } ?: fallback
+                startFlight(source, real ?: fallback)
+            }
+        }
+    }
+
+    protected fun showAppliedLocation(latitude: Double, longitude: Double, previous: MapCoordinates?) {
+        pendingMapResult = MapCommandResult.Applied(latitude, longitude, previous)
+        applyPendingMapResult()
+    }
+
+    protected fun trackedRealLocation(): MapCoordinates? = realLocationTracker.current()
+
+    protected fun showStoppedLocation(previous: MapCoordinates?) {
+        pendingMapResult = MapCommandResult.Stopped(previous)
+        applyPendingMapResult()
+    }
+
+    private fun startFlight(from: MapPoint, to: MapPoint, startedAt: Long = SystemClock.elapsedRealtime()) {
+        val map = findViewById<View>(R.id.map)
+        flightFrom = from
+        flightTo = to
+        flightStartedAt = startedAt
+        val elapsed = (SystemClock.elapsedRealtime() - startedAt).coerceIn(0L, FLIGHT_DURATION_MILLIS)
+        val duration = FLIGHT_DURATION_MILLIS - elapsed
+        if (from == to || duration == 0L) {
+            moveFlightCamera(to, 16.0)
+            startPreviewTimer()
+            return
+        }
+        val flight = MapFlight(
+            MapCoordinates(from.latitude, from.longitude),
+            MapCoordinates(to.latitude, to.longitude),
+            map.width, map.height
+        )
+        flightAnimator = ValueAnimator.ofFloat(elapsed.toFloat() / FLIGHT_DURATION_MILLIS, 1f).apply {
+            this.duration = duration
+            interpolator = android.view.animation.LinearInterpolator()
+            addUpdateListener {
+                val frame = flight.frame(it.animatedValue as Float)
+                moveFlightCamera(MapPoint(frame.latitude, frame.longitude), frame.zoom)
+            }
+            start()
+        }
+        startPreviewTimer()
+    }
+
+    private fun startPreviewTimer() {
+        if (!preview) return
+        if (previewDeadline == 0L) previewDeadline = SystemClock.elapsedRealtime() + FLIGHT_DURATION_MILLIS
+        previewJob?.cancel()
+        previewJob = lifecycleScope.launch {
+            delay((previewDeadline - SystemClock.elapsedRealtime()).coerceAtLeast(0L))
+            if (preview && !isFinishing) finish()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun resolveRealLocation(onResult: (MapPoint?) -> Unit) {
+        locationJob = lifecycleScope.launch {
+            if (!checkPermissions() || !isLocationEnabled() ||
+                (PrefManager.isStarted && PrefManager.isSystemHooked)
+            ) {
+                onResult(null)
+                return@launch
+            }
+            // Let the system hook observe that global spoofing has stopped before requesting a fix.
+            delay(500)
+            val manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val requestedAt = SystemClock.elapsedRealtimeNanos()
+            val location = withTimeoutOrNull(10_000L) {
+                suspendCancellableCoroutine<Location?> { continuation ->
+                    val listener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) {
+                            if (location.elapsedRealtimeNanos >= requestedAt &&
+                                !location.isFromMockProvider && continuation.isActive
+                            ) {
+                                manager.removeUpdates(this)
+                                continuation.resume(location)
+                            }
+                        }
+                    }
+                    continuation.invokeOnCancellation { manager.removeUpdates(listener) }
+                    val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+                        .filter { manager.isProviderEnabled(it) }
+                    try {
+                        providers.forEach {
+                            manager.requestLocationUpdates(it, 0L, 0f, listener, Looper.getMainLooper())
+                        }
+                        if (providers.isEmpty()) continuation.resume(null)
+                    } catch (exception: SecurityException) {
+                        Timber.w(exception, "Cannot request real location")
+                        manager.removeUpdates(listener)
+                        if (continuation.isActive) continuation.resume(null)
+                    } catch (exception: IllegalArgumentException) {
+                        Timber.w(exception, "Cannot request real location")
+                        manager.removeUpdates(listener)
+                        if (continuation.isActive) continuation.resume(null)
+                    }
+                }
+            }
+            onResult(location?.let { MapPoint(it.latitude, it.longitude) })
+        }
+    }
+
+    companion object {
+        private const val FLIGHT_DURATION_MILLIS = 4_000L
+        internal const val EXTRA_PREVIEW = "map_preview"
+        internal const val EXTRA_STOPPED = "map_stopped"
+        internal const val EXTRA_LATITUDE = "map_latitude"
+        internal const val EXTRA_LONGITUDE = "map_longitude"
+        internal const val EXTRA_PREVIOUS_LATITUDE = "map_previous_latitude"
+        internal const val EXTRA_PREVIOUS_LONGITUDE = "map_previous_longitude"
+        private const val STATE_PREVIEW = "preview"
+        private const val STATE_PREVIEW_DEADLINE = "preview_deadline"
+        private const val STATE_RESULT = "flight_result"
+        private const val STATE_FLIGHT = "flight_running"
+        private const val STATE_FROM_LAT = "flight_from_lat"
+        private const val STATE_FROM_LON = "flight_from_lon"
+        private const val STATE_TO_LAT = "flight_to_lat"
+        private const val STATE_TO_LON = "flight_to_lon"
+        private const val STATE_FLIGHT_START = "flight_start"
+        private var visibleMapCount = 0
+        internal val isMapVisible: Boolean get() = visibleMapCount > 0
     }
 
     private fun requestNotificationsPermissionIfNeeded() {
@@ -309,6 +635,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
         }
         PrefManager.appLocationProfiles
             .filter { it.enabled && it.started }
+            .sortedBy { it.packageName }
             .forEach { profile ->
                 add(
                     ActiveMapLocation(
@@ -359,30 +686,45 @@ abstract class BaseMapActivity: AppCompatActivity() {
         if (!PrefManager.isSeparateControlEnabled) return false
 
         val profiles = PrefManager.appLocationProfiles.filter { it.enabled }
+        val includeSystem = packageName == null || packageName == SYSTEM_LOCATION_TARGET
         val targets = if (packageName == null) {
             profiles
+        } else if (includeSystem) {
+            emptyList()
         } else {
             profiles.filter { it.packageName == packageName }
         }
-        if (targets.isEmpty()) {
-            showToast(getString(R.string.no_managed_apps_enabled))
+        if (targets.isEmpty() && !includeSystem) {
+            showToast(getString(R.string.app_profile_unavailable))
             return true
         }
 
-        PrefManager.setAppLocations(targets.map { it.packageName }.toSet(), lat, lon)
+        val targetPackages = targets.map { it.packageName }.toSet()
+        val previous = activeLocationForTargets(
+            if (includeSystem) targetPackages + SYSTEM_TARGET else targetPackages
+        )
+            ?: trackedRealLocation()
+        try {
+            PrefManager.applyLocations(targetPackages, includeSystem, lat, lon)
+        } catch (exception: IllegalStateException) {
+            Timber.e(exception, "Failed to apply locations")
+            showToast(getString(R.string.location_apply_failed))
+            return true
+        }
+        showAppliedLocation(lat, lon, previous)
         val locationName = selectedFavoriteName
             ?: getString(R.string.location_coordinates, lat, lon)
-        if (!PrefManager.isStarted) {
-            cancelNotification()
-        }
-        showManagedStartNotifications(
-            targets.map { profile ->
+        if (includeSystem) showStartNotification(locationName)
+        if (targets.isNotEmpty()) {
+            showManagedStartNotifications(targets.map { profile ->
                 profile.packageName to
                     getString(R.string.location_applied_to_app, profile.appName, locationName)
-            }
-        )
-        val toastText = if (packageName == null) {
-            getString(R.string.location_applied_to_apps, targets.size, locationName)
+            })
+        }
+        val toastText = if (includeSystem && packageName == null) {
+            getString(R.string.location_applied_to_system_and_apps, targets.size, locationName)
+        } else if (includeSystem) {
+            getString(R.string.location_applied_to_app, getString(R.string.voice_system_target), locationName)
         } else {
             getString(R.string.location_applied_to_app, targets.single().appName, locationName)
         }
@@ -398,20 +740,17 @@ abstract class BaseMapActivity: AppCompatActivity() {
         val profiles = PrefManager.appLocationProfiles
             .filter { it.enabled }
             .sortedBy { it.appName.lowercase(java.util.Locale.getDefault()) }
-        if (profiles.isEmpty()) {
-            showToast(getString(R.string.no_managed_apps_enabled))
-            return true
-        }
-
-        val choices = listOf(getString(R.string.all_managed_apps)) +
+        val choices = listOf(getString(R.string.all_managed_apps), getString(R.string.voice_system_target)) +
             profiles.map { it.appName }
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.choose_managed_app)
             .setItems(choices.toTypedArray()) { _, index ->
                 if (index == 0) {
                     applyLocationToManagedApps()
+                } else if (index == 1) {
+                    applyLocationToManagedApps(SYSTEM_LOCATION_TARGET)
                 } else {
-                    applyLocationToManagedApps(profiles[index - 1].packageName)
+                    applyLocationToManagedApps(profiles[index - 2].packageName)
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -453,6 +792,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
     protected fun stopManagedLocations(): Boolean {
         if (!PrefManager.isSeparateControlEnabled) return false
 
+        val previous = activeLocationForTargets(allActiveTargets())
         PrefManager.appLocationProfiles.forEach {
             cancelManagedLocationNotification(it.packageName)
         }
@@ -464,10 +804,12 @@ abstract class BaseMapActivity: AppCompatActivity() {
         updateLocationButtonVisibility()
         VoiceCommandTileService.requestStateUpdate(this)
         showToast(getString(R.string.managed_locations_stopped))
+        showStoppedLocation(previous)
         return true
     }
 
     private fun stopManagedLocation(packageName: String) {
+        val previous = activeLocationForTargets(setOf(packageName))
         if (packageName == SYSTEM_LOCATION_TARGET) {
             viewModel.update(false, PrefManager.getLat, PrefManager.getLng)
             cancelNotification()
@@ -478,6 +820,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
         updateLocationButtonVisibility()
         VoiceCommandTileService.requestStateUpdate(this)
         showToast(getString(R.string.managed_location_stopped))
+        showStoppedLocation(previous)
     }
 
     private fun updateLocationButtonVisibility() {
@@ -811,6 +1154,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+            realLocationTracker.start()
             getLastLocation()
         }
     }

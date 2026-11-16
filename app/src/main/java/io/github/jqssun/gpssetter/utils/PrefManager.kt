@@ -26,6 +26,8 @@ object PrefManager   {
     private const val PENDING_VOICE_TARGET = "pending_voice_target"
     private const val VOICE_TILE_ENABLED = "voice_quick_tile"
     private const val VOICE_FLOATING_BUTTON_ENABLED = "voice_floating_button"
+    private const val VOICE_OFFLINE_RECOGNITION = "voice_offline_recognition"
+    private const val VOICE_RECOGNITION_MODE = "voice_recognition_mode"
     private const val VOICE_FLOATING_BUTTON_X = "voice_floating_button_x"
     private const val VOICE_FLOATING_BUTTON_Y = "voice_floating_button_y"
 
@@ -93,6 +95,15 @@ object PrefManager   {
         get() = pref.getBoolean(VOICE_FLOATING_BUTTON_ENABLED, false)
         set(value) { pref.edit().putBoolean(VOICE_FLOATING_BUTTON_ENABLED, value).apply() }
 
+    internal var voiceRecognitionMode: VoiceRecognitionMode
+        get() = pref.getString(VOICE_RECOGNITION_MODE, null)?.let(VoiceRecognitionMode::fromValue)
+            ?: VoiceRecognitionMode.fromLegacyOffline(
+                pref.getBoolean(VOICE_OFFLINE_RECOGNITION, false)
+            )
+        set(value) {
+            pref.edit().putString(VOICE_RECOGNITION_MODE, value.value).apply()
+        }
+
     var voiceFloatingButtonX: Int
         get() = pref.getInt(VOICE_FLOATING_BUTTON_X, -1)
         set(value) { pref.edit().putInt(VOICE_FLOATING_BUTTON_X, value).apply() }
@@ -133,6 +144,7 @@ object PrefManager   {
             editor.apply()
         }
 
+    @Synchronized
     fun saveAppLocationProfile(profile: AppLocationProfile) {
         val wasSpoofingActive = isSpoofingActive
         val profiles = appLocationProfiles
@@ -146,6 +158,7 @@ object PrefManager   {
         syncForegroundServiceIfActivityChanged(wasSpoofingActive)
     }
 
+    @Synchronized
     fun setAppLocation(packageName: String, start: Boolean, latitude: Double? = null, longitude: Double? = null) {
         val profile = appLocationProfiles.firstOrNull { it.packageName == packageName }
             ?: throw IllegalArgumentException("No location profile for $packageName")
@@ -159,26 +172,26 @@ object PrefManager   {
     }
 
     fun setAppLocations(packageNames: Set<String>, latitude: Double, longitude: Double) {
-        require(packageNames.isNotEmpty()) { "At least one app profile is required" }
-        val profiles = appLocationProfiles
-        val matchedPackages = profiles
-            .filter { it.packageName in packageNames && it.enabled }
-            .map { it.packageName }
-            .toSet()
-        check(matchedPackages == packageNames) {
-            "One or more selected app profiles are missing or disabled"
-        }
-        saveAppLocationProfiles(
-            profiles.map { profile ->
-                if (profile.packageName in packageNames) {
-                    profile.copy(started = true, latitude = latitude, longitude = longitude)
-                } else {
-                    profile
-                }
-            }
-        )
+        applyLocations(packageNames, false, latitude, longitude)
     }
 
+    @Synchronized
+    fun applyLocations(packageNames: Set<String>, includeSystem: Boolean, latitude: Double, longitude: Double) {
+        val profiles = appLocationProfiles
+        val updatedProfiles = updatedLocationProfiles(profiles, packageNames, includeSystem, latitude, longitude)
+        val wasActive = isSpoofingActive
+        try {
+            check(commitLocationPreferences(
+                pref, APP_PROFILES,
+                if (packageNames.isNotEmpty()) AppLocationProfileCodec.encode(updatedProfiles) else null,
+                START, LATITUDE, LONGITUDE, includeSystem, latitude.toFloat(), longitude.toFloat()
+            )) { "Failed to save locations; previous preferences restored" }
+        } finally {
+            syncForegroundServiceIfActivityChanged(wasActive)
+        }
+    }
+
+    @Synchronized
     fun stopAllAppLocations() {
         saveAppLocationProfiles(
             appLocationProfiles.map { profile ->
@@ -197,6 +210,7 @@ object PrefManager   {
         syncForegroundServiceIfActivityChanged(wasSpoofingActive)
     }
 
+    @Synchronized
     fun update(start:Boolean, la: Double, ln: Double) {
         val wasSpoofingActive = isSpoofingActive
         pref.edit()
