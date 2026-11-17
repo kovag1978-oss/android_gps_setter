@@ -6,9 +6,13 @@ import android.annotation.SuppressLint
 import android.app.AndroidAppHelper
 import android.content.Context
 import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
 import android.location.LocationRequest
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -18,6 +22,8 @@ import io.github.jqssun.gpssetter.BuildConfig
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import timber.log.Timber
 import java.util.*
+import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -39,6 +45,10 @@ object LocationHook {
     private var appSpoofEnabled = false
     private var systemSpoofEnabled = false
     private val ignorePkg = arrayListOf("com.android.location.fused", BuildConfig.APPLICATION_ID)
+    private data class SyntheticUpdate(val handler: Handler, val runnable: Runnable)
+    private val syntheticUpdates = Collections.synchronizedMap(
+        IdentityHashMap<Any, SyntheticUpdate>()
+    )
 
     private val context by lazy { AndroidAppHelper.currentApplication() as Context }
 
@@ -105,6 +115,274 @@ object LocationHook {
             }
         }
         return systemSpoofEnabled
+    }
+
+    private fun createSyntheticLocation(packageName: String, provider: String): Location? {
+        if (!updateAppLocationIfNeeded(packageName)) return null
+        return Location(provider).apply {
+            time = System.currentTimeMillis()
+            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+            latitude = newlat
+            longitude = newlng
+            altitude = 0.0
+            speed = 0F
+            accuracy = this@LocationHook.accuracy
+            speedAccuracyMetersPerSecond = 0F
+        }
+    }
+
+    private fun startSyntheticLocationUpdates(
+        callback: Any,
+        packageName: String,
+        provider: String,
+        looper: Looper?,
+        executor: Executor?,
+        deliver: (Location) -> Unit
+    ) {
+        val handler = Handler(looper ?: Looper.getMainLooper())
+        val firstDelivery = AtomicBoolean(true)
+        lateinit var update: SyntheticUpdate
+        val runnable = object : Runnable {
+            override fun run() {
+                if (synchronized(syntheticUpdates) { syntheticUpdates[callback] !== update }) return
+                val location = createSyntheticLocation(packageName, provider)
+                if (location == null) {
+                    stopSyntheticLocationUpdates(callback)
+                    return
+                }
+                try {
+                    val delivery = Runnable {
+                        try {
+                            deliver(location)
+                            if (firstDelivery.compareAndSet(true, false)) {
+                                XposedBridge.log(
+                                    "LocationHook: first synthetic location delivered in $packageName"
+                                )
+                            }
+                        } catch (exception: Throwable) {
+                            XposedBridge.log(
+                                "LocationHook: synthetic callback failed in $packageName $exception"
+                            )
+                            stopSyntheticLocationUpdates(callback)
+                        }
+                    }
+                    if (executor != null) executor.execute(delivery) else handler.post(delivery)
+                } catch (exception: Throwable) {
+                    XposedBridge.log("LocationHook: synthetic update failed in $packageName $exception")
+                    stopSyntheticLocationUpdates(callback)
+                    return
+                }
+                handler.postDelayed(this, SYNTHETIC_LOCATION_INTERVAL_MILLIS)
+            }
+        }
+        update = SyntheticUpdate(handler, runnable)
+        synchronized(syntheticUpdates) {
+            syntheticUpdates.remove(callback)?.let { previous ->
+                previous.handler.removeCallbacks(previous.runnable)
+            }
+            syntheticUpdates[callback] = update
+        }
+        handler.post(runnable)
+        XposedBridge.log("LocationHook: synthetic location updates enabled in $packageName")
+    }
+
+    private fun stopSyntheticLocationUpdates(callback: Any) {
+        val update = synchronized(syntheticUpdates) { syntheticUpdates.remove(callback) } ?: return
+        update.handler.removeCallbacks(update.runnable)
+    }
+
+    private fun locationCallbackMethod(callback: Any): String? {
+        val methods = callback.javaClass.methods
+        return when {
+            methods.any { it.name == "onLocationResult" && it.parameterTypes.size == 1 } ->
+                "onLocationResult"
+            methods.any {
+                it.name == "onLocationChanged" &&
+                    it.parameterTypes.contentEquals(arrayOf(Location::class.java))
+            } -> "onLocationChanged"
+            else -> null
+        }
+    }
+
+    private fun isLocationRequestCancelled(arguments: Array<Any?>): Boolean =
+        arguments.filterNotNull().any { argument ->
+            val methodName = when {
+                argument.javaClass.methods.any {
+                    it.name == "isCancellationRequested" && it.parameterTypes.isEmpty()
+                } -> "isCancellationRequested"
+                argument.javaClass.methods.any {
+                    it.name == "isCanceled" && it.parameterTypes.isEmpty()
+                } -> "isCanceled"
+                else -> return@any false
+            }
+            try {
+                XposedHelpers.callMethod(argument, methodName) as? Boolean == true
+            } catch (exception: Throwable) {
+                XposedBridge.log("LocationHook: cannot inspect location cancellation state $exception")
+                false
+            }
+        }
+
+    private fun hookLocationManagerUpdates(lpparam: XC_LoadPackage.LoadPackageParam) {
+        val locationManagerClass = XposedHelpers.findClass("android.location.LocationManager", lpparam.classLoader)
+        locationManagerClass.declaredMethods
+            .filter { it.name == "requestLocationUpdates" || it.name == "removeUpdates" }
+            .forEach { method ->
+                XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        if (param.throwable != null) return
+                        if (method.name == "removeUpdates") {
+                            param.args.filterNotNull().forEach(::stopSyntheticLocationUpdates)
+                            return
+                        }
+                        val listener = param.args.firstOrNull { it is LocationListener } ?: return
+                        startSyntheticLocationUpdates(
+                            listener,
+                            lpparam.packageName,
+                            LocationManager.GPS_PROVIDER,
+                            param.args.filterIsInstance<Looper>().firstOrNull(),
+                            param.args.filterIsInstance<Executor>().firstOrNull()
+                        ) { location ->
+                            XposedHelpers.callMethod(listener, "onLocationChanged", location)
+                        }
+                    }
+                })
+            }
+    }
+
+    private fun hookLocationManagerCurrentLocation(lpparam: XC_LoadPackage.LoadPackageParam) {
+        val locationManagerClass = XposedHelpers.findClass("android.location.LocationManager", lpparam.classLoader)
+        locationManagerClass.declaredMethods
+            .filter { it.name == "getCurrentLocation" }
+            .forEach { method ->
+                XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        if (param.throwable != null || isLocationRequestCancelled(param.args)) return
+                        val consumer = param.args.firstOrNull {
+                            it != null && it.javaClass.methods.any { callback ->
+                                callback.name == "accept" && callback.parameterTypes.size == 1
+                            }
+                        } ?: return
+                        val location = createSyntheticLocation(
+                            lpparam.packageName,
+                            LocationManager.GPS_PROVIDER
+                        ) ?: return
+                        val delivery = Runnable {
+                            try {
+                                XposedHelpers.callMethod(consumer, "accept", location)
+                            } catch (exception: Throwable) {
+                                XposedBridge.log(
+                                    "LocationHook: synthetic current-location callback failed in " +
+                                        "${lpparam.packageName} $exception"
+                                )
+                            }
+                        }
+                        val executor = param.args.filterIsInstance<Executor>().firstOrNull()
+                        if (executor != null) {
+                            try {
+                                executor.execute(delivery)
+                            } catch (exception: Throwable) {
+                                XposedBridge.log(
+                                    "LocationHook: synthetic current-location dispatch failed in " +
+                                        "${lpparam.packageName} $exception"
+                                )
+                            }
+                        } else {
+                            Handler(Looper.getMainLooper()).post(delivery)
+                        }
+                    }
+                })
+            }
+    }
+
+    private fun hookFusedLocationClient(lpparam: XC_LoadPackage.LoadPackageParam) {
+        val clientClass = XposedHelpers.findClassIfExists(
+            "com.google.android.gms.location.FusedLocationProviderClient",
+            lpparam.classLoader
+        ) ?: return
+        val methods = mutableListOf<java.lang.reflect.Method>()
+        var currentClass: Class<*>? = clientClass
+        while (currentClass != null) {
+            methods += currentClass.declaredMethods
+            currentClass = currentClass.superclass
+        }
+        var hookedMethods = 0
+        methods.distinctBy {
+            it.name + it.parameterTypes.joinToString { parameter -> parameter.name }
+        }.filterNot { java.lang.reflect.Modifier.isAbstract(it.modifiers) }.forEach { method ->
+            when (method.name) {
+                "requestLocationUpdates" -> {
+                    XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                        override fun afterHookedMethod(param: MethodHookParam) {
+                            if (param.throwable != null || isLocationRequestCancelled(param.args)) return
+                            val callback = param.args.firstOrNull {
+                                it != null && locationCallbackMethod(it) != null
+                            } ?: return
+                            val callbackMethod = locationCallbackMethod(callback) ?: return
+                            startSyntheticLocationUpdates(
+                                callback,
+                                lpparam.packageName,
+                                "fused",
+                                param.args.filterIsInstance<Looper>().firstOrNull(),
+                                param.args.filterIsInstance<Executor>().firstOrNull()
+                            ) { location ->
+                                if (callbackMethod == "onLocationResult") {
+                                    val resultClass = XposedHelpers.findClass(
+                                        "com.google.android.gms.location.LocationResult",
+                                        lpparam.classLoader
+                                    )
+                                    val result = XposedHelpers.callStaticMethod(
+                                        resultClass,
+                                        "create",
+                                        listOf(location)
+                                    )
+                                    XposedHelpers.callMethod(callback, callbackMethod, result)
+                                } else {
+                                    XposedHelpers.callMethod(callback, callbackMethod, location)
+                                }
+                            }
+                        }
+                    })
+                    hookedMethods++
+                }
+                "removeLocationUpdates" -> {
+                    XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                        override fun afterHookedMethod(param: MethodHookParam) {
+                            if (param.throwable == null) {
+                                param.args.filterNotNull().forEach(::stopSyntheticLocationUpdates)
+                            }
+                        }
+                    })
+                    hookedMethods++
+                }
+                "getLastLocation", "getCurrentLocation" -> {
+                    XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                        override fun afterHookedMethod(param: MethodHookParam) {
+                            if (param.throwable != null ||
+                                (method.name == "getCurrentLocation" && isLocationRequestCancelled(param.args))
+                            ) return
+                            val location = createSyntheticLocation(lpparam.packageName, "fused") ?: return
+                            try {
+                                val tasksClass = XposedHelpers.findClass(
+                                    "com.google.android.gms.tasks.Tasks",
+                                    lpparam.classLoader
+                                )
+                                param.result = XposedHelpers.callStaticMethod(tasksClass, "forResult", location)
+                            } catch (exception: Throwable) {
+                                XposedBridge.log(
+                                    "LocationHook: unable to return synthetic fused location in " +
+                                        "${lpparam.packageName} $exception"
+                                )
+                            }
+                        }
+                    })
+                    hookedMethods++
+                }
+            }
+        }
+        if (hookedMethods > 0) {
+            XposedBridge.log("LocationHook: hooked $hookedMethods fused location method(s) in ${lpparam.packageName}")
+        }
     }
 
     private fun spoofedCopy(origin: Location): Location {
@@ -517,6 +795,11 @@ object LocationHook {
                 }
             )
             hookRadioSignals(lpparam)
+            if (!ignorePkg.contains(lpparam.packageName)) {
+                hookLocationManagerUpdates(lpparam)
+                hookLocationManagerCurrentLocation(lpparam)
+                hookFusedLocationClient(lpparam)
+            }
         }
     }
 
@@ -571,4 +854,6 @@ object LocationHook {
         }
         XposedBridge.log("LocationHook: hooked $count radio method(s) in $pkg")
     }
+
+    private const val SYNTHETIC_LOCATION_INTERVAL_MILLIS = 1_000L
 }

@@ -337,6 +337,9 @@ class VoiceCommandActivity : AppCompatActivity() {
                     if (mapWasVisible) {
                         mapIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
                             Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    } else {
+                        mapIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                     }
                     try {
                         startActivity(mapIntent)

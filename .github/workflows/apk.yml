@@ -84,16 +84,14 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Added regular, offline, and automatic voice recognition modes.
-            - Added system location control alongside separate app profiles.
-            - Added animated map flights, voice-command previews, and automatic return to the previous app.
-            - Improved map markers, voice prompts, and location-state handling.
+            - Deliver spoofed locations immediately through Android and Google fused location APIs, including indoors and after reboot.
+            - Keep real Wi-Fi and cellular scan results hidden from hooked apps and Google Play services.
+            - Refresh the app's Recent Apps preview after voice-command map flights.
 
             ## Изменения
-            - Добавлены обычный, автономный и автоматический режимы распознавания речи.
-            - Добавлено управление системной подменой вместе с отдельными профилями приложений.
-            - Добавлены анимированные перелёты карты, показ результата голосовой команды и возврат к предыдущему приложению.
-            - Улучшены маркеры карты, голосовые подсказки и обработка состояния геолокации.
+            - Подменённая геопозиция сразу передаётся через Android Location и Google Fused Location API, в том числе в помещении и после перезагрузки.
+            - Реальные результаты сканирования Wi-Fi и сотовой сети по-прежнему скрыты от перехватываемых приложений и Сервисов Google Play.
+            - Обновляется карточка приложения в списке последних после голосового перелёта карты.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk
@@ -108,16 +106,14 @@ jobs:
           tag_name: v${{ env.version }}
           body: |
             ## Changes
-            - Added regular, offline, and automatic voice recognition modes.
-            - Added system location control alongside separate app profiles.
-            - Added animated map flights, voice-command previews, and automatic return to the previous app.
-            - Improved map markers, voice prompts, and location-state handling.
+            - Deliver spoofed locations immediately through Android and Google fused location APIs, including indoors and after reboot.
+            - Keep real Wi-Fi and cellular scan results hidden from hooked apps and Google Play services.
+            - Refresh the app's Recent Apps preview after voice-command map flights.
 
             ## Изменения
-            - Добавлены обычный, автономный и автоматический режимы распознавания речи.
-            - Добавлено управление системной подменой вместе с отдельными профилями приложений.
-            - Добавлены анимированные перелёты карты, показ результата голосовой команды и возврат к предыдущему приложению.
-            - Улучшены маркеры карты, голосовые подсказки и обработка состояния геолокации.
+            - Подменённая геопозиция сразу передаётся через Android Location и Google Fused Location API, в том числе в помещении и после перезагрузки.
+            - Реальные результаты сканирования Wi-Fi и сотовой сети по-прежнему скрыты от перехватываемых приложений и Сервисов Google Play.
+            - Обновляется карточка приложения в списке последних после голосового перелёта карты.
           files: |
             ${{ env.main_project_module }}/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
             ${{ env.main_project_module }}/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk

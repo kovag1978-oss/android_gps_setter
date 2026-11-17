@@ -408,7 +408,10 @@ abstract class BaseMapActivity: AppCompatActivity() {
         previewJob?.cancel()
         previewJob = lifecycleScope.launch {
             delay((previewDeadline - SystemClock.elapsedRealtime()).coerceAtLeast(0L))
-            if (preview && !isFinishing) finish()
+            if (preview && !isFinishing && !moveTaskToBack(true)) {
+                Timber.w("Cannot move temporary map preview task to background")
+                finish()
+            }
         }
     }
 
