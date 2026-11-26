@@ -18,6 +18,11 @@
         android:icon="@drawable/ic_outline_settings_24"/>
 
     <item
+        android:id="@+id/support_project"
+        android:title="@string/support_project"
+        android:icon="@drawable/ic_baseline_favorite" />
+
+    <item
         android:id="@+id/about"
         android:title="@string/about"
         app:showAsAction="always"

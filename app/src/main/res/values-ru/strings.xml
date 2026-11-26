@@ -94,6 +94,10 @@
     <string name="settings">Настройки</string>
     <string name="settings_of_accuracy">Точность</string>
     <string name="preference_category_general">Общие</string>
+    <string name="support_project">Поддержать проект</string>
+    <string name="support_tribute_web">Донат через Tribute (веб)</string>
+    <string name="support_tribute_telegram">Донат через Telegram</string>
+    <string name="support_github">Поставить GPS Setter звезду на GitHub</string>
     <string name="voice_control_category">Голосовое управление</string>
     <string name="voice_offline_recognition">Автономное распознавание речи</string>
     <string name="voice_recognition_mode">Режим распознавания речи</string>
@@ -158,4 +162,5 @@
     <string name="voice_no_matches">Нет совпадений</string>
     <string name="voice_location_stopped">Подмена геолокации выключена</string>
     <string name="voice_location_set">Установлено местоположение: %1$s</string>
+    <string name="support_link_unavailable">Не удалось открыть ссылку. Установите или включите браузер и повторите попытку.</string>
 </resources>

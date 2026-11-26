@@ -105,6 +105,10 @@
     <string name="settings">Settings</string>
     <string name="settings_of_accuracy">Accuracy</string>
     <string name="preference_category_general">General</string>
+    <string name="support_project">Support the project</string>
+    <string name="support_tribute_web">Donate via Tribute (web)</string>
+    <string name="support_tribute_telegram">Donate via Telegram</string>
+    <string name="support_github">Star GPS Setter on GitHub</string>
     <string name="voice_control_category">Voice control</string>
     <string name="voice_offline_recognition">Offline speech recognition</string>
     <string name="voice_recognition_mode">Speech recognition mode</string>
@@ -169,5 +173,6 @@
     <string name="voice_no_matches">No matches</string>
     <string name="voice_location_stopped">Location spoofing turned off</string>
     <string name="voice_location_set">Location set to %1$s</string>
+    <string name="support_link_unavailable">Could not open this link. Install or enable a browser and try again.</string>
 
 </resources>

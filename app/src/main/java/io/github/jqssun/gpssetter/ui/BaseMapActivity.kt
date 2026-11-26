@@ -3,6 +3,7 @@ package io.github.jqssun.gpssetter.ui
 import android.Manifest
 import android.annotation.SuppressLint
 import android.animation.ValueAnimator
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -22,6 +23,9 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
@@ -119,6 +123,12 @@ abstract class BaseMapActivity: AppCompatActivity() {
     protected abstract fun clearSelectedMapMarker()
 
     protected data class MapPoint(val latitude: Double, val longitude: Double)
+
+    private data class SupportOption(
+        val titleRes: Int,
+        val iconRes: Int,
+        val url: String
+    )
 
     protected data class ActiveMapLocation(
         val title: String,
@@ -464,6 +474,10 @@ abstract class BaseMapActivity: AppCompatActivity() {
     }
 
     companion object {
+        private const val TRIBUTE_WEB_URL = "https://web.tribute.tg/d/V0z"
+        private const val TRIBUTE_TELEGRAM_URL = "https://t.me/tribute/app?startapp=dV0z"
+        private const val GITHUB_REPOSITORY_URL =
+            "https://github.com/kovag1978-oss/android_gps_setter"
         private const val FLIGHT_DURATION_MILLIS = 4_000L
         internal const val EXTRA_PREVIEW = "map_preview"
         internal const val EXTRA_STOPPED = "map_stopped"
@@ -591,12 +605,71 @@ abstract class BaseMapActivity: AppCompatActivity() {
                 R.id.settings -> {
                     startActivity(Intent(this,ActivitySettings::class.java))
                 }
+                R.id.support_project -> {
+                    showSupportOptionsDialog()
+                }
                 R.id.about -> {
                     aboutDialog()
                 }
             }
             binding.container.closeDrawer(GravityCompat.START)
             true
+        }
+    }
+
+    private fun showSupportOptionsDialog() {
+        val options = listOf(
+            SupportOption(
+                R.string.support_tribute_web,
+                R.drawable.ic_web,
+                TRIBUTE_WEB_URL
+            ),
+            SupportOption(
+                R.string.support_tribute_telegram,
+                R.drawable.ic_telegram,
+                TRIBUTE_TELEGRAM_URL
+            ),
+            SupportOption(
+                R.string.support_github,
+                R.drawable.ic_baseline_favorite,
+                GITHUB_REPOSITORY_URL
+            )
+        )
+        val adapter = object : ArrayAdapter<SupportOption>(
+            this,
+            R.layout.support_option_item,
+            R.id.support_option_title,
+            options
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = convertView ?: layoutInflater.inflate(
+                    R.layout.support_option_item,
+                    parent,
+                    false
+                )
+                val option = getItem(position) ?: return view
+                view.findViewById<ImageView>(R.id.support_option_icon)
+                    .setImageResource(option.iconRes)
+                view.findViewById<TextView>(R.id.support_option_title)
+                    .setText(option.titleRes)
+                return view
+            }
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.support_project)
+            .setAdapter(adapter) { _, which ->
+                options.getOrNull(which)?.let { openSupportUrl(it.url) }
+            }
+            .show()
+    }
+
+    private fun openSupportUrl(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (exception: ActivityNotFoundException) {
+            Timber.e(exception, "No app can open support URL: %s", url)
+            showToast(getString(R.string.support_link_unavailable))
         }
     }
 
